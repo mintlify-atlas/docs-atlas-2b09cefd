@@ -1,0 +1,105 @@
+{
+  "projectType": "saas",
+  "projectName": "OpenSight",
+  "projectDescription": "Monitor and analyze how AI systems talk about your brand in real-time",
+  "theme": "sequoia",
+  "primaryColor": "#0F52BA",
+  "lightColor": "#3B82F6",
+  "darkColor": "#1E40AF",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/brand-monitoring",
+              "features/competitor-tracking",
+              "features/content-scoring",
+              "features/ai-engines",
+              "features/alerts-notifications"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/self-hosting",
+              "deployment/docker",
+              "deployment/environment-variables"
+            ]
+          },
+          {
+            "group": "Platform",
+            "pages": [
+              "platform/plans-pricing",
+              "platform/admin-panel",
+              "platform/integrations"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "api-reference/overview",
+              "api-reference/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/brands",
+              "api-reference/competitors",
+              "api-reference/content",
+              "api-reference/prompts",
+              "api-reference/notifications",
+              "api-reference/webhooks",
+              "api-reference/api-keys",
+              "api-reference/users"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time AI brand monitoring across multiple engines",
+    "Competitor tracking and comparative analysis",
+    "Content sentiment and visibility scoring",
+    "Customizable alerts and notifications",
+    "Multi-engine support (ChatGPT, Perplexity, Google)",
+    "Self-hostable with Docker",
+    "RESTful API with comprehensive endpoints",
+    "Subscription-based plans with tier limits"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/register",
+    "POST /api/auth/login",
+    "GET /api/brands",
+    "POST /api/brands",
+    "GET /api/brands/:id/dashboard",
+    "GET /api/brands/:id/trends",
+    "GET /api/brands/:brandId/competitors",
+    "POST /api/brands/:brandId/competitors",
+    "POST /api/content/score",
+    "GET /api/content/score/history",
+    "GET /api/prompts",
+    "POST /api/prompts",
+    "GET /api/notifications",
+    "POST /api/webhooks",
+    "GET /api/api-keys",
+    "POST /api/api-keys"
+  ]
+}
