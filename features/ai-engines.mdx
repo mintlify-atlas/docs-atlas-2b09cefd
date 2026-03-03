@@ -1,0 +1,578 @@
+---
+title: 'AI Search Engines'
+description: 'Multi-engine support for ChatGPT, Perplexity, and Google AI Overview'
+icon: 'brain'
+---
+
+## Overview
+
+OpenSight monitors your brand visibility across the three major AI search engines: ChatGPT, Perplexity, and Google AI Overview. Each engine has unique characteristics, response formats, and ranking factors.
+
+## Supported Engines
+
+<CardGroup cols={3}>
+  <Card title="ChatGPT" icon="comments">
+    OpenAI's conversational AI with search capabilities
+  </Card>
+  <Card title="Perplexity" icon="magnifying-glass">
+    AI-powered answer engine with real-time web search
+  </Card>
+  <Card title="Google AIO" icon="google">
+    Google's AI Overview in search results
+  </Card>
+</CardGroup>
+
+## Engine Architecture
+
+OpenSight uses a unified client architecture to query all engines consistently:
+
+```typescript
+// From: packages/engine-clients/src/types.ts:1-18
+export interface EngineQuery {
+  prompt: string;
+  brandName: string;
+  brandUrl: string;
+}
+
+export interface EngineResponse {
+  engine: 'chatgpt' | 'perplexity' | 'google_aio';
+  responseText: string;
+  citationUrls: string[];
+  rawResponse: unknown;
+  queriedAt: Date;
+}
+
+export interface EngineClient {
+  name: string;
+  query(input: EngineQuery): Promise<EngineResponse>;
+}
+```
+
+## ChatGPT
+
+### Overview
+
+ChatGPT uses OpenAI's GPT-4o-mini model to generate conversational responses with search capabilities.
+
+### Implementation
+
+```typescript
+// From: packages/engine-clients/src/chatgpt.ts:1-46
+export class ChatGPTClient extends BaseEngineClient {
+  name = 'chatgpt';
+  private client: OpenAI;
+
+  constructor(apiKey?: string) {
+    super();
+    const key = apiKey || process.env.OPENAI_API_KEY;
+    if (!key) {
+      throw new Error('OPENAI_API_KEY is required for ChatGPT client');
+    }
+    this.client = new OpenAI({ apiKey: key });
+  }
+
+  async query(input: EngineQuery): Promise<EngineResponse> {
+    const prompt = `${input.prompt}\n\nContext: This query is for ${input.brandName} (${input.brandUrl})`;
+
+    const response = await this.retryWithExponentialBackoff(async () => {
+      return await this.client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      });
+    });
+
+    const responseText =
+      response.choices[0]?.message?.content || 'No response received';
+    const citationUrls = this.extractUrlsFromText(responseText);
+
+    return {
+      engine: 'chatgpt',
+      responseText,
+      citationUrls,
+      rawResponse: response,
+      queriedAt: new Date(),
+    };
+  }
+}
+```
+
+### Characteristics
+
+<Tabs>
+  <Tab title="Response Format">
+    **Conversational Style**
+    - Natural language responses
+    - Often includes context and explanations
+    - May cite sources inline with numbered references
+    
+    **Citation Handling**
+    - URLs extracted from response text
+    - Citations may be embedded in sentences
+  </Tab>
+  
+  <Tab title="Ranking Factors">
+    **What ChatGPT Favors:**
+    - Authoritative, well-cited content
+    - Clear, structured information
+    - Recent, up-to-date content
+    - Comprehensive answers to user queries
+  </Tab>
+  
+  <Tab title="Configuration">
+    **Model**: `gpt-4o-mini`
+    
+    **API Key**: Set `OPENAI_API_KEY` environment variable
+    
+    **Rate Limiting**: Handled with exponential backoff retry
+  </Tab>
+</Tabs>
+
+<Note>
+ChatGPT queries include brand context to help the model understand the search intent:
+
+```typescript
+const prompt = `${input.prompt}\n\nContext: This query is for ${input.brandName} (${input.brandUrl})`;
+```
+</Note>
+
+## Perplexity
+
+### Overview
+
+Perplexity is an AI-powered answer engine that performs real-time web searches and synthesizes information from multiple sources.
+
+### Implementation
+
+```typescript
+// From: packages/engine-clients/src/perplexity.ts:1-49
+export class PerplexityClient extends BaseEngineClient {
+  name = 'perplexity';
+  private client: OpenAI;
+
+  constructor(apiKey?: string) {
+    super();
+    const key = apiKey || process.env.PERPLEXITY_API_KEY;
+    if (!key) {
+      throw new Error('PERPLEXITY_API_KEY is required for Perplexity client');
+    }
+    this.client = new OpenAI({
+      apiKey: key,
+      baseURL: 'https://api.perplexity.ai',
+    });
+  }
+
+  async query(input: EngineQuery): Promise<EngineResponse> {
+    const prompt = `${input.prompt}\n\nContext: This query is for ${input.brandName} (${input.brandUrl})`;
+
+    const response = await this.retryWithExponentialBackoff(async () => {
+      return await this.client.chat.completions.create({
+        model: 'sonar',
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      });
+    });
+
+    const responseText =
+      response.choices[0]?.message?.content || 'No response received';
+    const citationUrls = this.extractUrlsFromText(responseText);
+
+    return {
+      engine: 'perplexity',
+      responseText,
+      citationUrls,
+      rawResponse: response,
+      queriedAt: new Date(),
+    };
+  }
+}
+```
+
+### Characteristics
+
+<Tabs>
+  <Tab title="Response Format">
+    **Search-Optimized**
+    - Direct answers backed by sources
+    - Often includes statistics and data
+    - Strong emphasis on citations
+    
+    **Real-Time Search**
+    - Performs live web searches
+    - Synthesizes multiple sources
+    - Favors recent, authoritative content
+  </Tab>
+  
+  <Tab title="Ranking Factors">
+    **What Perplexity Favors:**
+    - High-quality, cited content
+    - Domain authority and trust signals
+    - Content recency and freshness
+    - Clear, data-backed answers
+    - Structured data (schema markup)
+  </Tab>
+  
+  <Tab title="Configuration">
+    **Model**: `sonar`
+    
+    **API Key**: Set `PERPLEXITY_API_KEY` environment variable
+    
+    **Base URL**: `https://api.perplexity.ai`
+    
+    **Rate Limiting**: Handled with exponential backoff retry
+  </Tab>
+</Tabs>
+
+<Note>
+Perplexity uses OpenAI's SDK with a custom base URL to access their API.
+</Note>
+
+## Google AI Overview
+
+### Overview
+
+Google AI Overview (formerly SGE - Search Generative Experience) provides AI-generated summaries at the top of Google search results.
+
+### Implementation
+
+OpenSight uses the Serper API to access Google search results:
+
+```typescript
+// From: packages/engine-clients/src/google-aio.ts:1-87
+export class GoogleAIOClient extends BaseEngineClient {
+  name = 'google_aio';
+  private apiKey: string;
+
+  constructor(apiKey?: string) {
+    super();
+    const key = apiKey || process.env.SERPER_API_KEY;
+    if (!key) {
+      throw new Error('SERPER_API_KEY is required for Google AIO client');
+    }
+    this.apiKey = key;
+  }
+
+  async query(input: EngineQuery): Promise<EngineResponse> {
+    const searchQuery = `${input.prompt} ${input.brandName}`;
+
+    const response = await this.retryWithExponentialBackoff(async () => {
+      const res = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          q: searchQuery,
+          gl: 'us',
+          hl: 'en',
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Serper API error: ${res.statusText}`);
+      }
+
+      return (await res.json()) as SerperResponse;
+    });
+
+    let responseText = '';
+    const citationUrls: string[] = [];
+
+    // Extract answer box if present
+    if (response.answerBox?.snippet) {
+      responseText = response.answerBox.snippet;
+      if (response.answerBox.sources) {
+        response.answerBox.sources.forEach((source) => {
+          citationUrls.push(source.link);
+        });
+      }
+    }
+
+    // Extract organic results
+    if (response.organic) {
+      if (!responseText) {
+        responseText = response.organic
+          .slice(0, 3)
+          .map((result) => `${result.title}: ${result.snippet}`)
+          .join('\n\n');
+      }
+      response.organic.forEach((result) => {
+        citationUrls.push(result.link);
+      });
+    }
+
+    return {
+      engine: 'google_aio',
+      responseText: responseText || 'No results found',
+      citationUrls: [...new Set(citationUrls)],
+      rawResponse: response,
+      queriedAt: new Date(),
+    };
+  }
+}
+```
+
+### Characteristics
+
+<Tabs>
+  <Tab title="Response Format">
+    **Answer Box + Organic Results**
+    - AI-generated answer box (when available)
+    - Falls back to top 3 organic results
+    - Rich citation data
+    
+    **Serper Response Structure**
+    ```typescript
+    interface SerperResponse {
+      answerBox?: {
+        snippet?: string;
+        sources?: Array<{ title: string; link: string }>;
+      };
+      organic?: Array<{
+        title: string;
+        link: string;
+        snippet: string;
+      }>;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Ranking Factors">
+    **What Google AIO Favors:**
+    - Traditional SEO signals (PageRank, backlinks)
+    - E-E-A-T (Experience, Expertise, Authoritativeness, Trust)
+    - Structured data and schema markup
+    - Mobile-friendly, fast-loading pages
+    - High-quality content that matches search intent
+  </Tab>
+  
+  <Tab title="Configuration">
+    **API**: Serper API (`https://google.serper.dev/search`)
+    
+    **API Key**: Set `SERPER_API_KEY` environment variable
+    
+    **Parameters**:
+    - `q`: Search query (prompt + brand name)
+    - `gl`: Geographic location (default: `us`)
+    - `hl`: Language (default: `en`)
+    
+    **Rate Limiting**: Handled with exponential backoff retry
+  </Tab>
+</Tabs>
+
+<Warning>
+Google AI Overview availability varies by query type and geographic location. Not all searches trigger an AI Overview.
+</Warning>
+
+## Retry & Error Handling
+
+All engine clients inherit retry logic from `BaseEngineClient`:
+
+```typescript
+// From: packages/engine-clients/src/base.ts (referenced in other files)
+abstract class BaseEngineClient implements EngineClient {
+  abstract name: string;
+  abstract query(input: EngineQuery): Promise<EngineResponse>;
+  
+  // Exponential backoff retry for rate limits and transient errors
+  protected async retryWithExponentialBackoff<T>(
+    fn: () => Promise<T>,
+    maxAttempts = 3
+  ): Promise<T> {
+    // Implementation includes:
+    // - Retry on rate limits (429)
+    // - Exponential backoff (2s, 4s, 8s)
+    // - Max 3 attempts by default
+  }
+  
+  // Extract URLs from response text for citation tracking
+  protected extractUrlsFromText(text: string): string[] {
+    // URL extraction regex logic
+  }
+}
+```
+
+### Retry Configuration
+
+<Accordion title="Retry Behavior">
+  **Default Settings:**
+  - **Max Attempts**: 3
+  - **Backoff**: Exponential (2s → 4s → 8s)
+  - **Retry Triggers**: Rate limits (429), transient errors
+  
+  **Used in Alert Checker:**
+  ```typescript
+  // From: apps/api/src/jobs/alert-checker.ts:356-362
+  runJob('alert-checker', data, alertCheckerProcessor, {
+    attempts: 3,
+    backoffMs: 2000,
+  })
+  ```
+</Accordion>
+
+## Engine-Specific Scores
+
+OpenSight tracks separate visibility scores for each engine:
+
+```typescript
+// From: apps/api/src/services/brand.service.ts:273-277
+{
+  overallScore: snapshot.overallScore,
+  chatgptScore: snapshot.chatgptScore ?? 0,
+  perplexityScore: snapshot.perplexityScore ?? 0,
+  googleAioScore: snapshot.googleAioScore ?? 0,
+  // ...
+}
+```
+
+### Score Interpretation
+
+<CardGroup cols={3}>
+  <Card title="ChatGPT Score" icon="comments">
+    Measures visibility in ChatGPT responses
+    
+    **0-100 scale**
+  </Card>
+  <Card title="Perplexity Score" icon="magnifying-glass">
+    Measures visibility in Perplexity answers
+    
+    **0-100 scale**
+  </Card>
+  <Card title="Google AIO Score" icon="google">
+    Measures visibility in Google AI Overview
+    
+    **0-100 scale**
+  </Card>
+</CardGroup>
+
+<Note>
+The overall visibility score is calculated across all three engines, providing a holistic view of your AI search presence.
+</Note>
+
+## Best Practices by Engine
+
+<AccordionGroup>
+  <Accordion title="ChatGPT Optimization">
+    **Focus on:**
+    - Conversational, natural language content
+    - Clear explanations with context
+    - Authoritative sources and citations
+    - Comprehensive, well-structured answers
+    
+    **Content Tips:**
+    - Write in a helpful, educational tone
+    - Include examples and use cases
+    - Address common follow-up questions
+    - Link to authoritative external sources
+  </Accordion>
+  
+  <Accordion title="Perplexity Optimization">
+    **Focus on:**
+    - Data-driven, fact-based content
+    - Strong citation practices
+    - Recent, up-to-date information
+    - Domain authority and trust signals
+    
+    **Content Tips:**
+    - Include statistics and research findings
+    - Cite reputable sources prominently
+    - Update content regularly with fresh data
+    - Add schema markup for key entities
+  </Accordion>
+  
+  <Accordion title="Google AIO Optimization">
+    **Focus on:**
+    - Traditional SEO best practices
+    - E-E-A-T signals (expertise, authority, trust)
+    - Fast-loading, mobile-friendly pages
+    - Structured data and schema markup
+    
+    **Content Tips:**
+    - Optimize for traditional search ranking
+    - Build high-quality backlinks
+    - Demonstrate expertise with author bios
+    - Implement comprehensive schema markup
+  </Accordion>
+</AccordionGroup>
+
+## Environment Variables
+
+Configure API keys for each engine:
+
+```bash
+# ChatGPT
+OPENAI_API_KEY=sk-...
+
+# Perplexity
+PERPLEXITY_API_KEY=pplx-...
+
+# Google AI Overview (via Serper)
+SERPER_API_KEY=...
+```
+
+<Warning>
+Missing API keys will cause engine clients to throw errors on initialization. Ensure all required keys are set in your environment.
+</Warning>
+
+## Engine Status & Monitoring
+
+OpenSight tracks query success/failure for each engine in visibility snapshots. If an engine is down or rate-limited, the system:
+
+1. **Retries** with exponential backoff (up to 3 attempts)
+2. **Logs errors** for monitoring
+3. **Continues processing** other engines
+4. **Alerts users** if all engines fail
+
+## API Reference
+
+### Query All Engines
+
+Querying is handled automatically by the brand monitoring system. Each engine is queried with:
+
+```typescript
+{
+  prompt: "What are the best project management tools?",
+  brandName: "Acme Corp",
+  brandUrl: "https://acme.com"
+}
+```
+
+### Engine Responses
+
+All engines return a standardized response:
+
+```typescript
+{
+  engine: 'chatgpt' | 'perplexity' | 'google_aio',
+  responseText: string,
+  citationUrls: string[],
+  rawResponse: unknown,
+  queriedAt: Date
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Brand Monitoring" icon="chart-line" href="/features/brand-monitoring">
+    See how engines contribute to overall visibility
+  </Card>
+  <Card title="Content Scoring" icon="star" href="/features/content-scoring">
+    Optimize content for each engine
+  </Card>
+  <Card title="Competitor Tracking" icon="users" href="/features/competitor-tracking">
+    Compare performance across engines
+  </Card>
+  <Card title="Alerts" icon="bell" href="/features/alerts-notifications">
+    Get notified of engine-specific changes
+  </Card>
+</CardGroup>

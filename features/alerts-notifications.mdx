@@ -1,0 +1,712 @@
+---
+title: 'Alerts & Notifications'
+description: 'Real-time alerts for visibility changes, new mentions, sentiment shifts, and competitor activity'
+icon: 'bell'
+---
+
+## Overview
+
+Stay informed about important changes to your brand's AI search visibility with OpenSight's intelligent alert system. Get notified about visibility drops, new mentions, sentiment shifts, and new competitor appearances.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Smart Alerts" icon="bell-on">
+    Automated detection of significant changes across 4 alert types
+  </Card>
+  <Card title="Webhook Integration" icon="webhook">
+    Send alerts to your tools via custom webhooks
+  </Card>
+  <Card title="Email Notifications" icon="envelope">
+    Configurable email frequency (instant, daily, weekly)
+  </Card>
+  <Card title="Notification Center" icon="inbox">
+    In-app notification center with read/unread tracking
+  </Card>
+</CardGroup>
+
+## Alert Types
+
+OpenSight monitors for four types of important events:
+
+### 1. Visibility Drop Alerts
+
+Triggered when your overall visibility score drops by more than 10%:
+
+```typescript
+// From: apps/api/src/jobs/alert-checker.ts:11-41
+async function checkVisibilityDrop(
+  brandId: string,
+  currentScore: number
+): Promise<{ triggered: boolean; message: string }> {
+  // Get previous snapshot
+  const previousSnapshot = await db
+    .select()
+    .from(visibilitySnapshots)
+    .where(eq(visibilitySnapshots.brandId, brandId))
+    .orderBy(desc(visibilitySnapshots.snapshotDate))
+    .limit(2)
+    .offset(1);
+
+  if (!previousSnapshot.length || !previousSnapshot[0]) {
+    return { triggered: false, message: 'No previous snapshot' };
+  }
+
+  const previousScore = previousSnapshot[0].overallScore || 0;
+  const drop = previousScore - currentScore;
+  const percentDrop = (drop / previousScore) * 100;
+
+  if (percentDrop > 10) {
+    return {
+      triggered: true,
+      message: `Visibility dropped ${percentDrop.toFixed(1)}% from ${previousScore} to ${currentScore}`,
+    };
+  }
+
+  return { triggered: false, message: 'No significant drop' };
+}
+```
+
+<Warning>
+**Alert Trigger**: >10% decrease in overall visibility score
+
+**Example**: Score drops from 80 to 70 (12.5% decrease) → Alert triggered
+</Warning>
+
+### 2. New Mention Alerts
+
+Triggered when your total mention count increases:
+
+```typescript
+// From: apps/api/src/jobs/alert-checker.ts:44-72
+async function checkNewMentions(
+  brandId: string,
+  currentMentions: number
+): Promise<{ triggered: boolean; message: string }> {
+  const previousSnapshot = await db
+    .select()
+    .from(visibilitySnapshots)
+    .where(eq(visibilitySnapshots.brandId, brandId))
+    .orderBy(desc(visibilitySnapshots.snapshotDate))
+    .limit(2)
+    .offset(1);
+
+  if (!previousSnapshot.length || !previousSnapshot[0]) {
+    return { triggered: false, message: 'No previous snapshot' };
+  }
+
+  const previousMentions = previousSnapshot[0].totalMentions || 0;
+
+  if (currentMentions > previousMentions) {
+    return {
+      triggered: true,
+      message: `New mentions detected: ${currentMentions} (previously ${previousMentions})`,
+    };
+  }
+
+  return { triggered: false, message: 'No new mentions' };
+}
+```
+
+<Note>
+**Alert Trigger**: Any increase in total mentions
+
+**Example**: Mentions increase from 45 to 52 → Alert triggered
+</Note>
+
+### 3. Sentiment Shift Alerts
+
+Triggered when sentiment changes by 5% or more:
+
+```typescript
+// From: apps/api/src/jobs/alert-checker.ts:75-108
+async function checkSentimentShift(
+  brandId: string,
+  currentSentiment: { positive: number; neutral: number; negative: number }
+): Promise<{ triggered: boolean; message: string }> {
+  const previousSnapshot = await db
+    .select()
+    .from(visibilitySnapshots)
+    .where(eq(visibilitySnapshots.brandId, brandId))
+    .orderBy(desc(visibilitySnapshots.snapshotDate))
+    .limit(2)
+    .offset(1);
+
+  if (!previousSnapshot.length || !previousSnapshot[0]) {
+    return { triggered: false, message: 'No previous snapshot' };
+  }
+
+  const prevSent = previousSnapshot[0];
+  const prevPositive = parseFloat(String(prevSent.sentimentPositive || 0));
+  const prevNegative = parseFloat(String(prevSent.sentimentNegative || 0));
+
+  const positiveChange = currentSentiment.positive - prevPositive;
+  const negativeChange = currentSentiment.negative - prevNegative;
+
+  if (Math.abs(positiveChange) >= 5 || Math.abs(negativeChange) >= 5) {
+    return {
+      triggered: true,
+      message: `Sentiment shift detected: positive ${positiveChange > 0 ? '+' : ''}${positiveChange.toFixed(1)}%, negative ${negativeChange > 0 ? '+' : ''}${negativeChange.toFixed(1)}%`,
+    };
+  }
+
+  return { triggered: false, message: 'No significant shift' };
+}
+```
+
+<Accordion title="Sentiment Shift Examples">
+  **Positive Shift:**
+  - Positive sentiment: 60% → 70% (+10%)
+  - Message: "Sentiment shift detected: positive +10.0%, negative -5.0%"
+  
+  **Negative Shift:**
+  - Negative sentiment: 10% → 18% (+8%)
+  - Message: "Sentiment shift detected: positive -2.0%, negative +8.0%"
+  
+  **Threshold**: ±5% change in positive OR negative sentiment
+</Accordion>
+
+### 4. New Competitor Alerts
+
+Triggered when a competitor appears in AI results for the first time:
+
+```typescript
+// From: apps/api/src/jobs/alert-checker.ts:111-146
+async function checkNewCompetitors(
+  brandId: string,
+  currentCompetitors: Record<string, unknown>
+): Promise<{ triggered: boolean; message: string }> {
+  const previousSnapshot = await db
+    .select()
+    .from(visibilitySnapshots)
+    .where(eq(visibilitySnapshots.brandId, brandId))
+    .orderBy(desc(visibilitySnapshots.snapshotDate))
+    .limit(2)
+    .offset(1);
+
+  if (!previousSnapshot.length || !previousSnapshot[0]) {
+    return { triggered: false, message: 'No previous snapshot' };
+  }
+
+  const prevCompetitors = (previousSnapshot[0].competitorData as Record<string, unknown>) || {};
+  const newCompetitors: string[] = [];
+
+  Object.keys(currentCompetitors).forEach((name) => {
+    if (!prevCompetitors[name]) {
+      newCompetitors.push(name);
+    }
+  });
+
+  if (newCompetitors.length > 0) {
+    return {
+      triggered: true,
+      message: `New competitor appearances detected: ${newCompetitors.join(', ')}`,
+    };
+  }
+
+  return { triggered: false, message: 'No new competitors' };
+}
+```
+
+<Note>
+**Alert Trigger**: Competitor mentioned in current snapshot but not in previous snapshot
+
+**Example**: "Competitor A, Competitor B" appear in results for first time → Alert triggered
+</Note>
+
+## Notification Settings
+
+Configure which alerts you want to receive and how:
+
+### Get Settings
+
+```http
+GET /api/notifications/settings
+```
+
+**Response:**
+
+```json
+{
+  "settings": {
+    "userId": "user-123",
+    "emailFrequency": "daily",
+    "alertVisibilityDrop": true,
+    "alertNewMention": true,
+    "alertSentimentShift": true,
+    "alertCompetitorNew": true,
+    "webhookUrl": "https://hooks.slack.com/services/...",
+    "createdAt": "2024-01-15T10:00:00Z",
+    "updatedAt": "2024-03-01T14:30:00Z"
+  }
+}
+```
+
+### Update Settings
+
+```http
+PATCH /api/notifications/settings
+Content-Type: application/json
+
+{
+  "email_frequency": "instant",
+  "alert_visibility_drop": true,
+  "alert_new_mention": false,
+  "alert_sentiment_shift": true,
+  "alert_competitor_new": true,
+  "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+}
+```
+
+### Email Frequency Options
+
+<Tabs>
+  <Tab title="Instant">
+    Receive emails immediately when alerts are triggered
+    
+    **Best for**: High-value brands requiring immediate action
+  </Tab>
+  
+  <Tab title="Daily">
+    Receive a daily digest of all alerts (default)
+    
+    **Best for**: Regular monitoring without inbox overload
+  </Tab>
+  
+  <Tab title="Weekly">
+    Receive a weekly summary of alerts
+    
+    **Best for**: Lower-priority brands or overview tracking
+  </Tab>
+</Tabs>
+
+### Default Settings
+
+When first created, notification settings default to:
+
+```typescript
+// From: apps/api/src/services/notification.service.ts:90-101
+const result = await db
+  .insert(notificationSettings)
+  .values({
+    userId,
+    emailFrequency: 'daily',
+    alertVisibilityDrop: true,
+    alertNewMention: true,
+    alertSentimentShift: true,
+    alertCompetitorNew: true,
+  })
+  .returning();
+```
+
+## Webhook Integration
+
+Send alerts to external tools like Slack, Discord, or custom endpoints:
+
+### Webhook Payload
+
+```typescript
+// From: apps/api/src/jobs/alert-checker.ts:151-187
+async function sendWebhookNotification(
+  webhookUrl: string,
+  notification: {
+    type: string;
+    title: string;
+    body: string;
+    metadata: Record<string, unknown>;
+  }
+): Promise<boolean> {
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: notification.type,
+        title: notification.title,
+        body: notification.body,
+        metadata: notification.metadata,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return true;
+  } catch (error) {
+    logger.error(
+      { webhookUrl, error: error instanceof Error ? error.message : String(error) },
+      'Failed to send webhook notification'
+    );
+    return false;
+  }
+}
+```
+
+### Webhook Example Payload
+
+```json
+{
+  "type": "visibility_drop",
+  "title": "Visibility Drop Alert",
+  "body": "Visibility dropped 12.5% from 80 to 70",
+  "metadata": {
+    "brandId": "brand-123",
+    "brandName": "Acme Corp"
+  },
+  "timestamp": "2024-03-01T14:30:00Z"
+}
+```
+
+### Slack Integration
+
+To send alerts to Slack:
+
+<Steps>
+  <Step title="Create Incoming Webhook">
+    Go to Slack Apps → Create Incoming Webhook for your channel
+  </Step>
+  
+  <Step title="Copy Webhook URL">
+    Copy the URL (format: `https://hooks.slack.com/services/...`)
+  </Step>
+  
+  <Step title="Update Settings">
+    Add the webhook URL to your notification settings:
+    
+    ```json
+    {
+      "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    }
+    ```
+  </Step>
+</Steps>
+
+<Note>
+Webhook failures are logged but don't prevent in-app notifications from being created.
+</Note>
+
+## Notification Center
+
+View and manage all notifications in the in-app notification center:
+
+### List Notifications
+
+```http
+GET /api/notifications?unread=true
+```
+
+**Response:**
+
+```json
+{
+  "notifications": [
+    {
+      "id": "notif-123",
+      "userId": "user-123",
+      "type": "visibility_drop",
+      "title": "Visibility Drop Alert",
+      "body": "Visibility dropped 12.5% from 80 to 70",
+      "metadata": {
+        "brandId": "brand-123",
+        "brandName": "Acme Corp",
+        "severity": "warning"
+      },
+      "readAt": null,
+      "createdAt": "2024-03-01T14:30:00Z"
+    }
+  ]
+}
+```
+
+### Filter Options
+
+<Tabs>
+  <Tab title="All Notifications">
+    ```http
+    GET /api/notifications
+    ```
+    
+    Returns all notifications (read and unread)
+  </Tab>
+  
+  <Tab title="Unread Only">
+    ```http
+    GET /api/notifications?unread=true
+    ```
+    
+    Returns only unread notifications (`readAt` is null)
+  </Tab>
+</Tabs>
+
+### Mark as Read
+
+```http
+PATCH /api/notifications/:id/read
+```
+
+**Response:**
+
+```json
+{
+  "notification": {
+    "id": "notif-123",
+    "readAt": "2024-03-01T15:00:00Z"
+  }
+}
+```
+
+### Mark All as Read
+
+```http
+PATCH /api/notifications/read-all
+```
+
+**Response:**
+
+```json
+{
+  "success": true
+}
+```
+
+## Alert Checker Job
+
+Alerts are generated by an automated job that runs after each visibility snapshot:
+
+```typescript
+// From: apps/api/src/jobs/alert-checker.ts:192-350
+export async function alertCheckerProcessor(data: AlertCheckerJobData): Promise<any> {
+  const { brandId } = data;
+  
+  // 1. Get today's snapshot
+  const todaySnapshot = await db
+    .select()
+    .from(visibilitySnapshots)
+    .where(
+      and(
+        eq(visibilitySnapshots.brandId, brandId),
+        sql`DATE(${visibilitySnapshots.snapshotDate}::date) = ${today}::date`
+      )
+    )
+    .limit(1);
+  
+  // 2. Get notification settings
+  const settings = await db
+    .select()
+    .from(notificationSettings)
+    .where(eq(notificationSettings.userId, brandRecord.userId))
+    .limit(1);
+  
+  // 3. Check each alert type
+  const alerts: Array<Alert> = [];
+  
+  if (settings.alertVisibilityDrop) {
+    const visibilityCheck = await checkVisibilityDrop(brandId, snapshot.overallScore);
+    if (visibilityCheck.triggered) {
+      alerts.push({
+        type: 'visibility_drop',
+        title: 'Visibility Drop Alert',
+        body: visibilityCheck.message,
+        severity: 'warning',
+      });
+    }
+  }
+  
+  // ... (check other alert types)
+  
+  // 4. Create notifications
+  for (const alert of alerts) {
+    await db.insert(notifications).values({
+      userId: brandRecord.userId,
+      type: alert.type,
+      title: alert.title,
+      body: alert.body,
+      metadata: {
+        brandId,
+        brandName: brandRecord.name,
+        severity: alert.severity,
+      },
+    });
+    
+    // 5. Send webhook if configured
+    if (settings.webhookUrl) {
+      await sendWebhookNotification(settings.webhookUrl, alert);
+    }
+  }
+  
+  return {
+    success: true,
+    alertsCreated: alerts.length,
+    alertTypes: alerts.map((a) => a.type),
+  };
+}
+```
+
+### Job Configuration
+
+```typescript
+// From: apps/api/src/jobs/alert-checker.ts:355-362
+export async function queueAlertChecker(data: AlertCheckerJobData): Promise<void> {
+  runJob('alert-checker', data, alertCheckerProcessor, {
+    attempts: 3,
+    backoffMs: 2000,
+  }).catch((error) => {
+    logger.error({ error: error.message, brandId: data.brandId }, 'Alert checker job failed after retries');
+  });
+}
+```
+
+**Job Properties:**
+- **Attempts**: 3 retries on failure
+- **Backoff**: 2000ms exponential backoff
+- **Trigger**: Runs after each visibility snapshot is created
+
+## Severity Levels
+
+<CardGroup cols={3}>
+  <Card title="Info" icon="circle-info">
+    **Severity**: `info`
+    
+    - New mentions
+    - New competitor appearances
+  </Card>
+  <Card title="Warning" icon="triangle-exclamation">
+    **Severity**: `warning`
+    
+    - Visibility drops
+    - Sentiment shifts
+  </Card>
+  <Card title="Error" icon="circle-xmark">
+    **Severity**: `error`
+    
+    - Critical system issues
+    - Major visibility loss
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Configure Alert Sensitivity">
+    **Choose appropriate settings for each brand:**
+    
+    **High-Value Brands:**
+    - Enable all alert types
+    - Set email frequency to "instant"
+    - Configure Slack webhook for team visibility
+    
+    **Standard Brands:**
+    - Enable visibility drop + sentiment shift alerts
+    - Set email frequency to "daily"
+    - Review weekly in dashboard
+    
+    **Low-Priority Brands:**
+    - Enable only visibility drop alerts
+    - Set email frequency to "weekly"
+    - Monitor trends monthly
+  </Accordion>
+  
+  <Accordion title="Respond to Alerts Promptly">
+    **Action Plan for Each Alert Type:**
+    
+    **Visibility Drop:**
+    1. Check which AI engine(s) caused the drop
+    2. Review recent content changes
+    3. Analyze competitor activity
+    4. Update/improve affected content
+    
+    **New Mentions:**
+    1. Read the full AI responses
+    2. Assess mention quality and sentiment
+    3. Identify what triggered the mention
+    4. Replicate success in other content
+    
+    **Sentiment Shift:**
+    1. Identify source of negative sentiment
+    2. Address root cause (product issue, PR problem, etc.)
+    3. Create positive content to counter negative mentions
+    4. Monitor sentiment recovery
+    
+    **New Competitors:**
+    1. Add competitor to tracking list
+    2. Analyze their content strategy
+    3. Identify gaps in your coverage
+    4. Create competitive content
+  </Accordion>
+  
+  <Accordion title="Use Webhooks for Team Collaboration">
+    **Integrate with your team's tools:**
+    
+    - **Slack**: Share alerts in team channels
+    - **Discord**: Notify community/support teams
+    - **Zapier**: Trigger automated workflows
+    - **Custom Tools**: Build internal integrations
+    
+    **Example Workflows:**
+    - Visibility drop → Create Jira ticket
+    - New mention → Post to #wins channel
+    - Sentiment shift → Alert customer success team
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+### Notifications
+
+**List Notifications**
+```http
+GET /api/notifications?unread=true
+```
+
+**Mark as Read**
+```http
+PATCH /api/notifications/:id/read
+```
+
+**Mark All as Read**
+```http
+PATCH /api/notifications/read-all
+```
+
+### Settings
+
+**Get Settings**
+```http
+GET /api/notifications/settings
+```
+
+**Update Settings**
+```http
+PATCH /api/notifications/settings
+Content-Type: application/json
+
+{
+  "email_frequency": "daily",
+  "alert_visibility_drop": true,
+  "alert_new_mention": true,
+  "alert_sentiment_shift": true,
+  "alert_competitor_new": true,
+  "webhook_url": "https://hooks.slack.com/..."
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Brand Monitoring" icon="chart-line" href="/features/brand-monitoring">
+    Understand what triggers alerts
+  </Card>
+  <Card title="Competitor Tracking" icon="users" href="/features/competitor-tracking">
+    Set up competitor appearance alerts
+  </Card>
+  <Card title="Content Scoring" icon="star" href="/features/content-scoring">
+    Prevent visibility drops with better content
+  </Card>
+  <Card title="AI Engines" icon="brain" href="/features/ai-engines">
+    Learn which engines generate alerts
+  </Card>
+</CardGroup>

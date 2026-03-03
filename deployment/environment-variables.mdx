@@ -1,0 +1,606 @@
+---
+title: 'Environment Variables'
+description: 'Complete reference for all OpenSight environment variables'
+---
+
+## Overview
+
+OpenSight uses environment variables for configuration. Copy `.env.example` to `.env` and configure the variables for your deployment.
+
+```bash
+cp .env.example .env
+```
+
+## Required Variables
+
+These variables must be configured for OpenSight to function:
+
+### Database
+
+<ParamField path="DATABASE_URL" type="string" required>
+  PostgreSQL connection string
+  
+  **Format:** `postgresql://user:password@host:port/database`
+  
+  **Example:**
+  ```bash
+  # For Docker deployment (use service name)
+  DATABASE_URL=postgresql://opensight:opensight@postgres:5432/opensight
+  
+  # For local development
+  DATABASE_URL=postgresql://user:password@localhost:5432/opensight
+  ```
+</ParamField>
+
+### Authentication
+
+<ParamField path="JWT_SECRET" type="string" required>
+  Secret key for signing JWT access tokens
+  
+  **Requirements:** Minimum 64 characters, cryptographically random
+  
+  **Example:**
+  ```bash
+  JWT_SECRET=generate-a-64-char-random-string-here-use-openssl-rand-hex-32
+  ```
+  
+  **Generate secure secret:**
+  ```bash
+  openssl rand -hex 32
+  ```
+</ParamField>
+
+<ParamField path="JWT_REFRESH_SECRET" type="string" required>
+  Secret key for signing JWT refresh tokens
+  
+  **Requirements:** Minimum 64 characters, cryptographically random (different from JWT_SECRET)
+  
+  **Example:**
+  ```bash
+  JWT_REFRESH_SECRET=generate-another-different-64-char-random-string-here
+  ```
+  
+  **Generate secure secret:**
+  ```bash
+  openssl rand -hex 32
+  ```
+</ParamField>
+
+### Application URLs
+
+<ParamField path="NEXT_PUBLIC_APP_URL" type="string" required>
+  Public URL where the web application is hosted
+  
+  **Example:**
+  ```bash
+  # Development
+  NEXT_PUBLIC_APP_URL=http://localhost:3000
+  
+  # Production
+  NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
+  ```
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_API_URL" type="string" required>
+  Public URL where the API server is accessible
+  
+  **Example:**
+  ```bash
+  # Development
+  NEXT_PUBLIC_API_URL=http://localhost:4000
+  
+  # Production
+  NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+  ```
+</ParamField>
+
+<ParamField path="FRONTEND_URL" type="string" required>
+  Frontend application URL (used by API for CORS and redirects)
+  
+  **Example:**
+  ```bash
+  FRONTEND_URL=http://localhost:3000
+  ```
+</ParamField>
+
+## Optional Variables
+
+### OAuth Authentication
+
+Configure OAuth providers for user authentication:
+
+<ParamField path="GITHUB_CLIENT_ID" type="string">
+  GitHub OAuth application client ID
+  
+  **Where to get:** https://github.com/settings/developers
+  
+  **Example:**
+  ```bash
+  GITHUB_CLIENT_ID=Iv1.a1b2c3d4e5f6g7h8
+  ```
+</ParamField>
+
+<ParamField path="GITHUB_CLIENT_SECRET" type="string">
+  GitHub OAuth application client secret
+  
+  **Example:**
+  ```bash
+  GITHUB_CLIENT_SECRET=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
+  ```
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_ID" type="string">
+  Google OAuth 2.0 client ID
+  
+  **Where to get:** https://console.cloud.google.com/apis/credentials
+  
+  **Example:**
+  ```bash
+  GOOGLE_CLIENT_ID=123456789012-abcdefghijklmnopqrstuvwxyz012345.apps.googleusercontent.com
+  ```
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_SECRET" type="string">
+  Google OAuth 2.0 client secret
+  
+  **Example:**
+  ```bash
+  GOOGLE_CLIENT_SECRET=GOCSPX-abcdefghijklmnopqrstuvwxyz
+  ```
+</ParamField>
+
+### Payment Processing (Stripe)
+
+<ParamField path="STRIPE_SECRET_KEY" type="string">
+  Stripe secret API key for server-side operations
+  
+  **Where to get:** https://dashboard.stripe.com/apikeys
+  
+  **Example:**
+  ```bash
+  # Test key
+  STRIPE_SECRET_KEY=sk_test_51AbCdEfGhIjKlMnOpQrStUvWxYz
+  
+  # Live key
+  STRIPE_SECRET_KEY=sk_live_51AbCdEfGhIjKlMnOpQrStUvWxYz
+  ```
+</ParamField>
+
+<ParamField path="STRIPE_WEBHOOK_SECRET" type="string">
+  Stripe webhook signing secret for verifying webhook events
+  
+  **Where to get:** https://dashboard.stripe.com/webhooks
+  
+  **Example:**
+  ```bash
+  STRIPE_WEBHOOK_SECRET=whsec_abcdefghijklmnopqrstuvwxyz123456
+  ```
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" type="string">
+  Stripe publishable key for client-side operations
+  
+  **Example:**
+  ```bash
+  # Test key
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51AbCdEfGhIjKlMnOpQrStUvWxYz
+  
+  # Live key
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51AbCdEfGhIjKlMnOpQrStUvWxYz
+  ```
+</ParamField>
+
+<ParamField path="STRIPE_STARTER_PRICE_ID" type="string">
+  Stripe Price ID for the Starter plan
+  
+  **Where to get:** https://dashboard.stripe.com/products
+  
+  **Example:**
+  ```bash
+  STRIPE_STARTER_PRICE_ID=price_1AbCdEfGhIjKlMnO
+  ```
+</ParamField>
+
+<ParamField path="STRIPE_GROWTH_PRICE_ID" type="string">
+  Stripe Price ID for the Growth plan
+  
+  **Example:**
+  ```bash
+  STRIPE_GROWTH_PRICE_ID=price_1PqRsTuVwXyZaBcD
+  ```
+</ParamField>
+
+### Email Service (Resend)
+
+<ParamField path="RESEND_API_KEY" type="string">
+  Resend API key for sending transactional emails
+  
+  **Where to get:** https://resend.com/api-keys
+  
+  **Example:**
+  ```bash
+  RESEND_API_KEY=re_AbCdEfGh_1234567890abcdefghijklmnopqr
+  ```
+</ParamField>
+
+<ParamField path="EMAIL_FROM" type="string">
+  Email address used as the sender for outgoing emails
+  
+  **Requirements:** Must be a verified domain in Resend
+  
+  **Example:**
+  ```bash
+  EMAIL_FROM=notifications@opensight.dev
+  ```
+</ParamField>
+
+### Redis Cache
+
+<ParamField path="UPSTASH_REDIS_REST_URL" type="string">
+  Upstash Redis REST API URL
+  
+  **Where to get:** https://console.upstash.com/redis
+  
+  **Example:**
+  ```bash
+  # Upstash hosted
+  UPSTASH_REDIS_REST_URL=https://your-db-name.upstash.io
+  
+  # Self-hosted Redis (Docker)
+  UPSTASH_REDIS_REST_URL=redis://redis:6379
+  ```
+</ParamField>
+
+<ParamField path="UPSTASH_REDIS_REST_TOKEN" type="string">
+  Upstash Redis REST API authentication token
+  
+  **Note:** Not required for self-hosted Redis
+  
+  **Example:**
+  ```bash
+  UPSTASH_REDIS_REST_TOKEN=AbCdEfGhIjKlMnOpQrStUvWxYz1234567890
+  ```
+</ParamField>
+
+### AI Engine APIs
+
+Configure AI service providers for content analysis:
+
+<ParamField path="OPENAI_API_KEY" type="string">
+  OpenAI API key for GPT models
+  
+  **Where to get:** https://platform.openai.com/api-keys
+  
+  **Example:**
+  ```bash
+  OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOP
+  ```
+</ParamField>
+
+<ParamField path="PERPLEXITY_API_KEY" type="string">
+  Perplexity AI API key for real-time search and analysis
+  
+  **Where to get:** https://www.perplexity.ai/settings/api
+  
+  **Example:**
+  ```bash
+  PERPLEXITY_API_KEY=pplx-abcdefghijklmnopqrstuvwxyz1234567890
+  ```
+</ParamField>
+
+<ParamField path="SERPER_API_KEY" type="string">
+  Serper API key for Google Search integration
+  
+  **Where to get:** https://serper.dev/api-key
+  
+  **Example:**
+  ```bash
+  SERPER_API_KEY=1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd
+  ```
+</ParamField>
+
+### File Uploads (Uploadthing)
+
+<ParamField path="UPLOADTHING_SECRET" type="string">
+  Uploadthing secret key for server-side file operations
+  
+  **Where to get:** https://uploadthing.com/dashboard
+  
+  **Example:**
+  ```bash
+  UPLOADTHING_SECRET=sk_live_abcdefghijklmnopqrstuvwxyz1234567890
+  ```
+</ParamField>
+
+<ParamField path="UPLOADTHING_APP_ID" type="string">
+  Uploadthing application ID
+  
+  **Example:**
+  ```bash
+  UPLOADTHING_APP_ID=abcdefghij
+  ```
+</ParamField>
+
+### Error Tracking (Sentry)
+
+<ParamField path="SENTRY_DSN" type="string">
+  Sentry DSN for server-side error tracking
+  
+  **Where to get:** https://sentry.io/settings/projects/
+  
+  **Example:**
+  ```bash
+  SENTRY_DSN=https://1234567890abcdef@o123456.ingest.sentry.io/1234567
+  ```
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_SENTRY_DSN" type="string">
+  Sentry DSN for client-side error tracking
+  
+  **Example:**
+  ```bash
+  NEXT_PUBLIC_SENTRY_DSN=https://1234567890abcdef@o123456.ingest.sentry.io/1234567
+  ```
+</ParamField>
+
+### Feature Flags
+
+<ParamField path="ENABLE_CONTENT_SCORING" type="boolean" default="true">
+  Enable or disable content scoring features
+  
+  **Example:**
+  ```bash
+  ENABLE_CONTENT_SCORING=true
+  ```
+</ParamField>
+
+<ParamField path="ENABLE_WEBHOOKS" type="boolean" default="true">
+  Enable or disable webhook functionality
+  
+  **Example:**
+  ```bash
+  ENABLE_WEBHOOKS=true
+  ```
+</ParamField>
+
+### Server Configuration
+
+<ParamField path="API_PORT" type="number" default="4000">
+  Port number for the API server
+  
+  **Example:**
+  ```bash
+  API_PORT=4000
+  ```
+</ParamField>
+
+<ParamField path="NODE_ENV" type="string" default="development">
+  Node.js environment mode
+  
+  **Possible values:** `development`, `production`, `test`
+  
+  **Example:**
+  ```bash
+  NODE_ENV=production
+  ```
+</ParamField>
+
+## Configuration Examples
+
+### Development Environment
+
+```bash .env
+# Database
+DATABASE_URL=postgresql://opensight:opensight@localhost:5432/opensight
+
+# Authentication
+JWT_SECRET=dev-secret-key-minimum-64-characters-replace-in-production-environment
+JWT_REFRESH_SECRET=dev-refresh-secret-minimum-64-characters-replace-in-production
+
+# Application URLs
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:4000
+FRONTEND_URL=http://localhost:3000
+API_PORT=4000
+
+# Environment
+NODE_ENV=development
+
+# Redis (using Docker)
+UPSTASH_REDIS_REST_URL=redis://localhost:6379
+
+# Feature Flags
+ENABLE_CONTENT_SCORING=true
+ENABLE_WEBHOOKS=true
+```
+
+### Production Environment (Docker)
+
+```bash .env
+# Database (use Docker service name)
+DATABASE_URL=postgresql://opensight:opensight@postgres:5432/opensight
+
+# Authentication (use secure random values)
+JWT_SECRET=<output-of-openssl-rand-hex-32>
+JWT_REFRESH_SECRET=<output-of-openssl-rand-hex-32>
+
+# Application URLs (replace with your domain)
+NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+FRONTEND_URL=https://app.yourdomain.com
+API_PORT=4000
+
+# Environment
+NODE_ENV=production
+
+# Redis (use Docker service name)
+UPSTASH_REDIS_REST_URL=redis://redis:6379
+
+# OAuth
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Stripe (production keys)
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_STARTER_PRICE_ID=price_...
+STRIPE_GROWTH_PRICE_ID=price_...
+
+# Email
+RESEND_API_KEY=re_...
+EMAIL_FROM=notifications@yourdomain.com
+
+# AI APIs
+OPENAI_API_KEY=sk-proj-...
+PERPLEXITY_API_KEY=pplx-...
+SERPER_API_KEY=...
+
+# File Uploads
+UPLOADTHING_SECRET=sk_live_...
+UPLOADTHING_APP_ID=...
+
+# Error Tracking
+SENTRY_DSN=https://...@sentry.io/...
+NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
+
+# Feature Flags
+ENABLE_CONTENT_SCORING=true
+ENABLE_WEBHOOKS=true
+```
+
+### Production Environment (Managed Services)
+
+```bash .env
+# Database (managed PostgreSQL)
+DATABASE_URL=postgresql://user:password@your-db-host.region.provider.com:5432/opensight?sslmode=require
+
+# Authentication
+JWT_SECRET=<secure-random-string>
+JWT_REFRESH_SECRET=<secure-random-string>
+
+# Application URLs
+NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+FRONTEND_URL=https://app.yourdomain.com
+API_PORT=4000
+
+# Environment
+NODE_ENV=production
+
+# Redis (Upstash)
+UPSTASH_REDIS_REST_URL=https://your-db-name.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-upstash-token
+
+# (Include all other production variables from above)
+```
+
+## Security Best Practices
+
+<Warning>
+  Never commit your `.env` file to version control. The `.env` file is included in `.gitignore` by default.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Generate Secure Secrets" icon="key">
+    Use cryptographically secure random strings:
+    ```bash
+    openssl rand -hex 32
+    ```
+  </Card>
+  
+  <Card title="Separate Environments" icon="layer-group">
+    Use different credentials for development, staging, and production environments.
+  </Card>
+  
+  <Card title="Rotate Secrets" icon="rotate">
+    Regularly rotate JWT secrets and API keys, especially after team member changes.
+  </Card>
+  
+  <Card title="Use Secrets Management" icon="vault">
+    In production, use secret management services (AWS Secrets Manager, HashiCorp Vault, etc.).
+  </Card>
+</CardGroup>
+
+## Validating Configuration
+
+Verify your environment configuration:
+
+```bash
+# Check required variables are set
+node -e "require('dotenv').config(); const required = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'NEXT_PUBLIC_APP_URL', 'NEXT_PUBLIC_API_URL']; required.forEach(v => { if (!process.env[v]) console.error('Missing:', v); });"
+
+# Test database connection
+npm run db:generate
+
+# Test Redis connection (if using Upstash)
+curl -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" $UPSTASH_REDIS_REST_URL/ping
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Database connection failed">
+    **Symptoms:** API fails to start with database connection errors
+    
+    **Solutions:**
+    - Verify `DATABASE_URL` is correctly formatted
+    - For Docker: Use service name (`postgres`) instead of `localhost`
+    - Check PostgreSQL is running: `docker compose ps postgres`
+    - Verify credentials match PostgreSQL configuration
+  </Accordion>
+  
+  <Accordion title="JWT authentication not working">
+    **Symptoms:** Login fails or tokens are invalid
+    
+    **Solutions:**
+    - Ensure `JWT_SECRET` and `JWT_REFRESH_SECRET` are set
+    - Verify secrets are at least 64 characters
+    - Check secrets are different from each other
+    - Clear browser cookies and try again
+  </Accordion>
+  
+  <Accordion title="OAuth login fails">
+    **Symptoms:** OAuth redirect fails or shows error
+    
+    **Solutions:**
+    - Verify OAuth client IDs and secrets are correct
+    - Check redirect URIs in OAuth provider settings
+    - Ensure `NEXT_PUBLIC_APP_URL` matches OAuth configuration
+    - For GitHub: Callback URL should be `{NEXT_PUBLIC_APP_URL}/api/auth/callback/github`
+  </Accordion>
+  
+  <Accordion title="Redis connection errors">
+    **Symptoms:** Caching fails or application is slow
+    
+    **Solutions:**
+    - For Docker: Use `redis://redis:6379` format
+    - For Upstash: Verify both URL and token are set
+    - Test connection: `docker compose exec redis redis-cli ping`
+    - Check Redis is running: `docker compose ps redis`
+  </Accordion>
+  
+  <Accordion title="API not accessible from frontend">
+    **Symptoms:** Frontend shows network errors
+    
+    **Solutions:**
+    - Verify `NEXT_PUBLIC_API_URL` is publicly accessible
+    - Check CORS settings in API server
+    - Ensure `FRONTEND_URL` matches web application URL
+    - For Docker: Verify port mappings are correct
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy OpenSight using Docker Compose
+  </Card>
+  
+  <Card title="Self-Hosting Guide" icon="server" href="/deployment/self-hosting">
+    Learn about self-hosting architecture and options
+  </Card>
+</CardGroup>

@@ -1,0 +1,273 @@
+---
+title: 'API Keys'
+description: 'Manage API keys for programmatic access to OpenSight'
+---
+
+## List API Keys
+
+<api method="GET" path="/api/api-keys" auth="required">
+  List all API keys for the authenticated user. Keys are returned with only the prefix visible for security.
+</api>
+
+### Response
+
+<ResponseField name="keys" type="ApiKey[]">
+  Array of API key objects
+  
+  <Expandable title="ApiKey properties">
+    <ResponseField name="id" type="string" required>
+      Unique key identifier
+    </ResponseField>
+    
+    <ResponseField name="user_id" type="string" required>
+      Owner's user ID
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Key name (1-100 characters)
+    </ResponseField>
+    
+    <ResponseField name="key_prefix" type="string" required>
+      First 8 characters of the key (e.g., "os_live_")
+    </ResponseField>
+    
+    <ResponseField name="last_used_at" type="string | null" required>
+      ISO 8601 timestamp of last use (null if never used)
+    </ResponseField>
+    
+    <ResponseField name="requests_today" type="number" required>
+      Number of requests made today
+    </ResponseField>
+    
+    <ResponseField name="requests_month" type="number" required>
+      Number of requests made this month
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/api-keys" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "keys": [
+    {
+      "id": "key_123",
+      "user_id": "user_456",
+      "name": "Production API Key",
+      "key_prefix": "os_live_",
+      "last_used_at": "2024-01-15T10:00:00Z",
+      "requests_today": 45,
+      "requests_month": 1250,
+      "created_at": "2024-01-01T08:00:00Z"
+    },
+    {
+      "id": "key_124",
+      "user_id": "user_456",
+      "name": "Development Key",
+      "key_prefix": "os_test_",
+      "last_used_at": null,
+      "requests_today": 0,
+      "requests_month": 0,
+      "created_at": "2024-01-10T14:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Create API Key
+
+<api method="POST" path="/api/api-keys" auth="required">
+  Create a new API key. The full key is only returned once and cannot be retrieved again. Plan limits apply based on your subscription tier.
+</api>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Descriptive name for the API key (1-100 characters)
+</ParamField>
+
+### Response
+
+<ResponseField name="key" type="ApiKey">
+  The created API key object with full key value
+  
+  <Expandable title="ApiKey properties">
+    <ResponseField name="id" type="string" required>
+      Unique key identifier
+    </ResponseField>
+    
+    <ResponseField name="user_id" type="string" required>
+      Owner's user ID
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Key name
+    </ResponseField>
+    
+    <ResponseField name="key" type="string" required>
+      Full API key value (only returned on creation)
+    </ResponseField>
+    
+    <ResponseField name="key_prefix" type="string" required>
+      First 8 characters of the key
+    </ResponseField>
+    
+    <ResponseField name="last_used_at" type="string | null" required>
+      Always null on creation
+    </ResponseField>
+    
+    <ResponseField name="requests_today" type="number" required>
+      Always 0 on creation
+    </ResponseField>
+    
+    <ResponseField name="requests_month" type="number" required>
+      Always 0 on creation
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="warning" type="string">
+  Security warning about saving the key
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST "https://api.opensight.ai/api/api-keys" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production API Key"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "key": {
+    "id": "key_123",
+    "user_id": "user_456",
+    "name": "Production API Key",
+    "key": "os_live_1234567890abcdef1234567890abcdef",
+    "key_prefix": "os_live_",
+    "last_used_at": null,
+    "requests_today": 0,
+    "requests_month": 0,
+    "created_at": "2024-01-15T10:00:00Z"
+  },
+  "warning": "Please save this API key in a secure location. You will not be able to view it again."
+}
+```
+
+<Warning>
+  The full API key is only shown once during creation. Store it securely as you cannot retrieve it again. If you lose the key, you must create a new one.
+</Warning>
+
+### Errors
+
+- **403 Forbidden** - API key limit reached for your plan
+- **400 Bad Request** - Invalid input data
+
+### Plan Limits
+
+- **Free**: 2 API keys
+- **Starter**: 5 API keys
+- **Growth**: 20 API keys
+
+---
+
+## Delete API Key
+
+<api method="DELETE" path="/api/api-keys/:id" auth="required">
+  Revoke an API key. Once revoked, the key can no longer be used to authenticate requests.
+</api>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  API key ID
+</ParamField>
+
+### Response
+
+<ResponseField name="key" type="ApiKey">
+  The revoked API key object
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X DELETE "https://api.opensight.ai/api/api-keys/key_123" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "key": {
+    "id": "key_123",
+    "user_id": "user_456",
+    "name": "Production API Key",
+    "key_prefix": "os_live_",
+    "last_used_at": "2024-01-15T10:00:00Z",
+    "requests_today": 45,
+    "requests_month": 1250,
+    "created_at": "2024-01-01T08:00:00Z"
+  },
+  "message": "API key has been revoked and is no longer usable"
+}
+```
+
+### Errors
+
+- **404 Not Found** - API key not found or user doesn't own it
+- **400 Bad Request** - API key already revoked
+
+### Best Practices
+
+1. **Rotation**: Regularly rotate API keys for security
+2. **Naming**: Use descriptive names to identify key purposes
+3. **Least Privilege**: Create separate keys for different environments (production, staging, development)
+4. **Monitoring**: Track key usage through `requests_today` and `requests_month` fields
+5. **Revocation**: Immediately revoke keys if compromised
+
+### Using API Keys
+
+Include your API key in the `Authorization` header of all API requests:
+
+```bash
+Authorization: Bearer os_live_1234567890abcdef1234567890abcdef
+```
+
+Or use it as a query parameter (less secure):
+
+```bash
+https://api.opensight.ai/api/brands?api_key=os_live_1234567890abcdef1234567890abcdef
+```
+
+<Note>
+  The header method is strongly recommended for security. Query parameters may be logged in server access logs.
+</Note>

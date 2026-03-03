@@ -1,0 +1,383 @@
+---
+title: Authentication
+description: Learn how to authenticate with the OpenSight API
+---
+
+## Overview
+
+OpenSight supports multiple authentication methods to suit different use cases:
+
+- **JWT Access Tokens** - For web applications and user-specific requests
+- **API Keys** - For server-to-server integrations and automation
+- **OAuth 2.0** - For third-party integrations (GitHub, Google)
+
+## JWT Access Tokens
+
+JWT (JSON Web Token) access tokens are the primary authentication method for user-authenticated requests. Tokens are obtained through registration, login, or OAuth flows.
+
+### Token Lifecycle
+
+- **Access Token**: Short-lived (15 minutes) - Used for API requests
+- **Refresh Token**: Long-lived (30 days) - Used to obtain new access tokens
+
+Access tokens are sent in the `Authorization` header, while refresh tokens are stored in HTTP-only cookies for security.
+
+### Obtaining Access Tokens
+
+<CodeGroup>
+
+```bash Email & Password Login
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "your-password"
+  }'
+```
+
+```bash User Registration
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "your-password",
+    "name": "John Doe"
+  }'
+```
+
+```bash Refresh Token
+curl -X POST http://localhost:3000/api/auth/refresh \
+  -H "Cookie: refresh_token=YOUR_REFRESH_TOKEN"
+```
+
+</CodeGroup>
+
+### Response Format
+
+```json
+{
+  "user": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "email": "user@example.com",
+    "full_name": "John Doe",
+    "avatar_url": null,
+    "email_verified": false,
+    "plan_id": "free",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  },
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEyM2U0NTY3LWU4OWItMTJkMy1hNDU2LTQyNjYxNDE3NDAwMCIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInBsYW5faWQiOiJmcmVlIiwiaWF0IjoxNzA1MzE1ODAwLCJleHAiOjE3MDUzMTY3MDB9.xxx"
+}
+```
+
+The `refresh_token` is automatically set as an HTTP-only cookie:
+
+```http
+Set-Cookie: refresh_token=eyJhbGc...; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000; Path=/
+```
+
+### Using Access Tokens
+
+Include the access token in the `Authorization` header with the `Bearer` scheme:
+
+```bash
+curl http://localhost:3000/api/users/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+<Note>
+  Access tokens expire after **15 minutes**. Use the refresh token endpoint to obtain a new access token before it expires.
+</Note>
+
+### Token Refresh Flow
+
+When your access token expires (401 Unauthorized), refresh it using the refresh token:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/refresh \
+  -H "Cookie: refresh_token=YOUR_REFRESH_TOKEN"
+```
+
+Response:
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+A new refresh token is also issued and set as a cookie.
+
+### Logout
+
+Revoke the refresh token when logging out:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/logout \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Cookie: refresh_token=YOUR_REFRESH_TOKEN"
+```
+
+Response:
+```json
+{
+  "message": "Logged out successfully"
+}
+```
+
+## API Keys
+
+API keys are ideal for server-to-server integrations, automation scripts, and machine-to-machine communication. They don't expire and can be revoked at any time.
+
+### Key Format
+
+API keys use the format: `sk_` followed by 64 hexadecimal characters
+
+```
+sk_a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
+```
+
+<Note>
+  API keys are displayed only once during creation. Store them securely - you won't be able to view the full key again.
+</Note>
+
+### Creating API Keys
+
+<CodeGroup>
+
+```bash Create API Key
+curl -X POST http://localhost:3000/api/api-keys \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production Server"
+  }'
+```
+
+```json Response
+{
+  "key": {
+    "id": "key_abc123",
+    "name": "Production Server",
+    "keyPrefix": "sk_a1b2c3d4e5f67890",
+    "key": "sk_a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+    "createdAt": "2024-01-15T10:30:00Z"
+  },
+  "warning": "Please save this API key in a secure location. You will not be able to view it again."
+}
+```
+
+</CodeGroup>
+
+### Using API Keys
+
+Include the API key in the `Authorization` header with the `Bearer` scheme:
+
+```bash
+curl http://localhost:3000/api/brands \
+  -H "Authorization: Bearer sk_a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+```
+
+### Managing API Keys
+
+<CodeGroup>
+
+```bash List API Keys
+curl http://localhost:3000/api/api-keys \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```bash Delete API Key
+curl -X DELETE http://localhost:3000/api/api-keys/key_abc123 \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+</CodeGroup>
+
+List response:
+```json
+{
+  "keys": [
+    {
+      "id": "key_abc123",
+      "name": "Production Server",
+      "keyPrefix": "sk_a1b2c3d4e5f67890",
+      "lastUsedAt": "2024-01-15T12:00:00Z",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "revokedAt": null
+    }
+  ]
+}
+```
+
+Delete response:
+```json
+{
+  "key": {
+    "id": "key_abc123",
+    "name": "Production Server",
+    "keyPrefix": "sk_a1b2c3d4e5f67890",
+    "revokedAt": "2024-01-15T14:00:00Z"
+  },
+  "message": "API key has been revoked and is no longer usable"
+}
+```
+
+### Plan Limits
+
+API key creation is subject to plan limits:
+
+```json
+// 403 Forbidden - Limit reached
+{
+  "error": "You have reached the maximum number of API keys (5) for your plan"
+}
+```
+
+## OAuth 2.0
+
+OpenSight supports OAuth authentication with GitHub and Google for seamless third-party login.
+
+### GitHub OAuth
+
+<CodeGroup>
+
+```bash Initiate GitHub Flow
+# Redirect user to:
+http://localhost:3000/api/auth/github
+```
+
+```bash Callback
+# GitHub redirects to:
+http://localhost:3000/api/auth/github/callback?code=xxx
+
+# OpenSight redirects to frontend with token:
+http://your-frontend.com/auth/callback?accessToken=eyJhbGc...&provider=github
+```
+
+</CodeGroup>
+
+### Google OAuth
+
+<CodeGroup>
+
+```bash Initiate Google Flow
+# Redirect user to:
+http://localhost:3000/api/auth/google
+```
+
+```bash Token Exchange (Web Flow)
+curl -X POST http://localhost:3000/api/auth/google/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+  }'
+```
+
+```bash Callback
+# Google redirects to:
+http://localhost:3000/api/auth/google/callback?code=xxx
+
+# OpenSight redirects to frontend with token:
+http://your-frontend.com/auth/callback?accessToken=eyJhbGc...&provider=google
+```
+
+</CodeGroup>
+
+### OAuth User Linking
+
+When a user authenticates via OAuth:
+
+1. **New user**: A new account is created with `email_verified: true`
+2. **Existing email**: The OAuth provider is linked to the existing account
+3. **Existing OAuth ID**: The user is logged in directly
+
+## Password Reset
+
+Users can reset their password via email:
+
+<CodeGroup>
+
+```bash Request Reset
+curl -X POST http://localhost:3000/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com"
+  }'
+```
+
+```bash Reset Password
+curl -X POST http://localhost:3000/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "reset-token-from-email",
+    "password": "new-secure-password"
+  }'
+```
+
+</CodeGroup>
+
+Response:
+```json
+{
+  "message": "If an account exists for this email, a password reset link has been sent."
+}
+```
+
+<Note>
+  Reset tokens expire after **1 hour** and can only be used once.
+</Note>
+
+## Security Best Practices
+
+### Token Storage
+
+- **Access Tokens**: Store in memory or secure state management (never localStorage)
+- **Refresh Tokens**: Stored as HTTP-only cookies by the API automatically
+- **API Keys**: Store in environment variables or secure secret management systems
+
+### HTTPS Only
+
+In production (`NODE_ENV=production`), cookies are marked as `Secure` and require HTTPS:
+
+```javascript
+// Cookie options (from auth.controller.ts:7-13)
+{
+  httpOnly: true,
+  secure: env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  path: '/'
+}
+```
+
+### Error Handling
+
+Handle authentication errors gracefully:
+
+```javascript
+if (response.status === 401) {
+  // Try to refresh token
+  const refreshResponse = await fetch('/api/auth/refresh', {
+    method: 'POST',
+    credentials: 'include' // Include cookies
+  });
+  
+  if (refreshResponse.ok) {
+    const { accessToken } = await refreshResponse.json();
+    // Retry original request with new token
+  } else {
+    // Redirect to login
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="book" href="/api-reference/overview">
+    Learn about API structure and response formats
+  </Card>
+  <Card title="API Endpoints" icon="code" href="/api-reference/endpoints">
+    Explore available API endpoints
+  </Card>
+</CardGroup>

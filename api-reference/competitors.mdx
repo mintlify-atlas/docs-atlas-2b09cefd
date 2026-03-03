@@ -1,0 +1,304 @@
+---
+title: 'Competitors'
+description: 'Track and compare your brand against competitors across AI search engines'
+---
+
+## List Competitors
+
+<api method="GET" path="/api/brands/:brandId/competitors" auth="required">
+  List all competitors for a specific brand.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+### Response
+
+<ResponseField name="competitors" type="Competitor[]">
+  Array of competitor objects
+  
+  <Expandable title="Competitor properties">
+    <ResponseField name="id" type="string" required>
+      Unique competitor identifier
+    </ResponseField>
+    
+    <ResponseField name="brand_id" type="string" required>
+      Parent brand ID
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Competitor name
+    </ResponseField>
+    
+    <ResponseField name="website_url" type="string" required>
+      Competitor website URL
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/brands/brand_123/competitors" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "competitors": [
+    {
+      "id": "comp_123",
+      "brand_id": "brand_123",
+      "name": "Competitor Inc",
+      "website_url": "https://competitor.com",
+      "created_at": "2024-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+### Errors
+
+- **404 Not Found** - Brand not found or user doesn't own it
+
+---
+
+## Add Competitor
+
+<api method="POST" path="/api/brands/:brandId/competitors" auth="required">
+  Add a new competitor to track. Plan limits apply based on your subscription tier.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Competitor name (1-255 characters)
+</ParamField>
+
+<ParamField body="website_url" type="string" required>
+  Valid competitor website URL
+</ParamField>
+
+### Response
+
+<ResponseField name="competitor" type="Competitor">
+  The created competitor object
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST "https://api.opensight.ai/api/brands/brand_123/competitors" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Competitor Inc",
+    "website_url": "https://competitor.com"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "competitor": {
+    "id": "comp_123",
+    "brand_id": "brand_123",
+    "name": "Competitor Inc",
+    "website_url": "https://competitor.com",
+    "created_at": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+### Errors
+
+- **403 Forbidden** - Competitor limit reached for your plan
+- **404 Not Found** - Brand not found or user doesn't own it
+- **409 Conflict** - Competitor already exists for this brand
+- **400 Bad Request** - Invalid input data
+
+### Plan Limits
+
+- **Free**: 2 competitors per brand
+- **Starter**: 5 competitors per brand
+- **Growth**: 5 competitors per brand
+
+---
+
+## Remove Competitor
+
+<api method="DELETE" path="/api/brands/:brandId/competitors/:competitorId" auth="required">
+  Remove a competitor from tracking.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+<ParamField path="competitorId" type="string" required>
+  Competitor ID
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Returns true if successful
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X DELETE "https://api.opensight.ai/api/brands/brand_123/competitors/comp_123" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "success": true
+}
+```
+
+### Errors
+
+- **404 Not Found** - Brand or competitor not found, or user doesn't own the brand
+
+---
+
+## Get Competitor Comparison
+
+<api method="GET" path="/api/brands/:brandId/competitors/comparison" auth="required">
+  Get comprehensive competitor analysis including share of voice, gap analysis, and leaderboard rankings.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+### Response
+
+<ResponseField name="share_of_voice" type="object[]">
+  Share of voice percentages across all tracked brands
+  
+  <Expandable title="Share of voice properties">
+    <ResponseField name="brand_name" type="string">
+      Brand or competitor name
+    </ResponseField>
+    
+    <ResponseField name="percentage" type="number">
+      Percentage of total mentions (0-100)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="gaps" type="object[]">
+  Prompts where competitors are mentioned but your brand is not
+  
+  <Expandable title="Gap properties">
+    <ResponseField name="prompt" type="string">
+      The prompt text
+    </ResponseField>
+    
+    <ResponseField name="competitors_present" type="string[]">
+      Array of competitor names mentioned
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="leaderboard" type="object[]">
+  Rankings per prompt showing how brands compare
+  
+  <Expandable title="Leaderboard properties">
+    <ResponseField name="prompt" type="string">
+      The prompt text
+    </ResponseField>
+    
+    <ResponseField name="rankings" type="object[]">
+      Array of brand rankings
+      
+      <Expandable title="Ranking properties">
+        <ResponseField name="name" type="string">
+          Brand or competitor name
+        </ResponseField>
+        
+        <ResponseField name="score" type="number">
+          Visibility score (0-100)
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/brands/brand_123/competitors/comparison" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "share_of_voice": [
+    {
+      "brand_name": "Acme Inc",
+      "percentage": 45.5
+    },
+    {
+      "brand_name": "Competitor Inc",
+      "percentage": 35.2
+    },
+    {
+      "brand_name": "Other Corp",
+      "percentage": 19.3
+    }
+  ],
+  "gaps": [
+    {
+      "prompt": "Best project management software for teams",
+      "competitors_present": ["Competitor Inc", "Other Corp"]
+    }
+  ],
+  "leaderboard": [
+    {
+      "prompt": "Top CRM software for small businesses",
+      "rankings": [
+        {
+          "name": "Acme Inc",
+          "score": 85
+        },
+        {
+          "name": "Competitor Inc",
+          "score": 72
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Errors
+
+- **404 Not Found** - Brand not found or user doesn't own it

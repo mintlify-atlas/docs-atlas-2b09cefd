@@ -1,0 +1,334 @@
+---
+title: 'Notifications'
+description: 'Manage notifications and alert settings for visibility changes'
+---
+
+## List Notifications
+
+<api method="GET" path="/api/notifications" auth="required">
+  List all notifications for the authenticated user with optional filtering for unread notifications.
+</api>
+
+### Query Parameters
+
+<ParamField query="unread" type="string">
+  Filter for unread notifications only (true or false)
+</ParamField>
+
+### Response
+
+<ResponseField name="notifications" type="Notification[]">
+  Array of notification objects
+  
+  <Expandable title="Notification properties">
+    <ResponseField name="id" type="string" required>
+      Unique notification identifier
+    </ResponseField>
+    
+    <ResponseField name="user_id" type="string" required>
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="type" type="string" required>
+      Notification type: visibility_drop, new_mention, sentiment_shift, or competitor_new
+    </ResponseField>
+    
+    <ResponseField name="title" type="string" required>
+      Notification title
+    </ResponseField>
+    
+    <ResponseField name="body" type="string | null" required>
+      Notification body text
+    </ResponseField>
+    
+    <ResponseField name="metadata" type="object" required>
+      Additional metadata about the notification
+    </ResponseField>
+    
+    <ResponseField name="read_at" type="string | null" required>
+      ISO 8601 timestamp when notification was read (null if unread)
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/notifications?unread=true" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "notifications": [
+    {
+      "id": "notif_123",
+      "user_id": "user_456",
+      "type": "visibility_drop",
+      "title": "Visibility Drop Alert",
+      "body": "Your brand visibility on ChatGPT dropped by 15% in the last 24 hours",
+      "metadata": {
+        "brand_id": "brand_123",
+        "engine": "chatgpt",
+        "change_percent": -15
+      },
+      "read_at": null,
+      "created_at": "2024-01-15T10:00:00Z"
+    },
+    {
+      "id": "notif_124",
+      "user_id": "user_456",
+      "type": "new_mention",
+      "title": "New Brand Mention",
+      "body": "Your brand was mentioned in a new prompt response on Perplexity",
+      "metadata": {
+        "brand_id": "brand_123",
+        "prompt_id": "prompt_789",
+        "engine": "perplexity"
+      },
+      "read_at": null,
+      "created_at": "2024-01-15T09:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Mark Notification as Read
+
+<api method="PATCH" path="/api/notifications/:id/read" auth="required">
+  Mark a specific notification as read.
+</api>
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Notification ID
+</ParamField>
+
+### Response
+
+<ResponseField name="notification" type="Notification">
+  The updated notification object
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X PATCH "https://api.opensight.ai/api/notifications/notif_123/read" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "notification": {
+    "id": "notif_123",
+    "user_id": "user_456",
+    "type": "visibility_drop",
+    "title": "Visibility Drop Alert",
+    "body": "Your brand visibility on ChatGPT dropped by 15% in the last 24 hours",
+    "metadata": {
+      "brand_id": "brand_123",
+      "engine": "chatgpt",
+      "change_percent": -15
+    },
+    "read_at": "2024-01-15T10:30:00Z",
+    "created_at": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+### Errors
+
+- **404 Not Found** - Notification not found or user doesn't own it
+
+---
+
+## Mark All as Read
+
+<api method="PATCH" path="/api/notifications/read-all" auth="required">
+  Mark all notifications as read for the authenticated user.
+</api>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Returns true if successful
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X PATCH "https://api.opensight.ai/api/notifications/read-all" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "success": true
+}
+```
+
+---
+
+## Get Notification Settings
+
+<api method="GET" path="/api/notifications/settings" auth="required">
+  Get notification preferences and alert settings for the authenticated user.
+</api>
+
+### Response
+
+<ResponseField name="settings" type="NotificationSettings">
+  The notification settings object
+  
+  <Expandable title="NotificationSettings properties">
+    <ResponseField name="id" type="string" required>
+      Settings ID
+    </ResponseField>
+    
+    <ResponseField name="user_id" type="string" required>
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="email_frequency" type="string" required>
+      Email frequency: daily, weekly, or none
+    </ResponseField>
+    
+    <ResponseField name="alert_visibility_drop" type="boolean" required>
+      Whether to alert on visibility drops
+    </ResponseField>
+    
+    <ResponseField name="alert_new_mention" type="boolean" required>
+      Whether to alert on new mentions
+    </ResponseField>
+    
+    <ResponseField name="alert_sentiment_shift" type="boolean" required>
+      Whether to alert on sentiment shifts
+    </ResponseField>
+    
+    <ResponseField name="alert_competitor_new" type="boolean" required>
+      Whether to alert on new competitor mentions
+    </ResponseField>
+    
+    <ResponseField name="webhook_url" type="string | null" required>
+      Webhook URL for real-time alerts (Growth plan only)
+    </ResponseField>
+    
+    <ResponseField name="updated_at" type="string" required>
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/notifications/settings" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "settings": {
+    "id": "settings_123",
+    "user_id": "user_456",
+    "email_frequency": "daily",
+    "alert_visibility_drop": true,
+    "alert_new_mention": true,
+    "alert_sentiment_shift": true,
+    "alert_competitor_new": false,
+    "webhook_url": "https://your-app.com/webhooks/opensight",
+    "updated_at": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+---
+
+## Update Notification Settings
+
+<api method="PATCH" path="/api/notifications/settings" auth="required">
+  Update notification preferences and alert settings. All fields are optional.
+</api>
+
+### Request Body
+
+<ParamField body="email_frequency" type="string">
+  Email frequency: daily, weekly, or none
+</ParamField>
+
+<ParamField body="alert_visibility_drop" type="boolean">
+  Whether to alert on visibility drops
+</ParamField>
+
+<ParamField body="alert_new_mention" type="boolean">
+  Whether to alert on new mentions
+</ParamField>
+
+<ParamField body="alert_sentiment_shift" type="boolean">
+  Whether to alert on sentiment shifts
+</ParamField>
+
+<ParamField body="alert_competitor_new" type="boolean">
+  Whether to alert on new competitor mentions
+</ParamField>
+
+<ParamField body="webhook_url" type="string | null">
+  Webhook URL for real-time alerts (Growth plan only, set to null to disable)
+</ParamField>
+
+### Response
+
+<ResponseField name="settings" type="NotificationSettings">
+  The updated settings object
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X PATCH "https://api.opensight.ai/api/notifications/settings" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email_frequency": "weekly",
+    "alert_visibility_drop": true,
+    "alert_new_mention": false,
+    "webhook_url": "https://your-app.com/webhooks/opensight"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "settings": {
+    "id": "settings_123",
+    "user_id": "user_456",
+    "email_frequency": "weekly",
+    "alert_visibility_drop": true,
+    "alert_new_mention": false,
+    "alert_sentiment_shift": true,
+    "alert_competitor_new": false,
+    "webhook_url": "https://your-app.com/webhooks/opensight",
+    "updated_at": "2024-01-15T11:00:00Z"
+  }
+}
+```
+
+<Note>
+  Webhook alerts are only available on the Growth plan. Setting a webhook_url on lower plans will be ignored.
+</Note>

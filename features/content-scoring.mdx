@@ -1,0 +1,554 @@
+---
+title: 'Content Scoring'
+description: 'Analyze and score your content for AI search visibility and optimization'
+icon: 'star'
+---
+
+## Overview
+
+Content Scoring analyzes your web pages and content to determine how well they're optimized for AI search engines. Get actionable recommendations to improve structure, readability, freshness, and citation quality.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-Dimension Scoring" icon="chart-radar">
+    Score content across 5 key dimensions: structure, readability, freshness, key content, and citations
+  </Card>
+  <Card title="Actionable Recommendations" icon="list-check">
+    Get specific suggestions to improve each score
+  </Card>
+  <Card title="Score History" icon="clock-rotate-left">
+    Track score changes over time to measure improvements
+  </Card>
+  <Card title="Daily Limits" icon="gauge">
+    Plan-based scoring limits prevent overuse
+  </Card>
+</CardGroup>
+
+## How Content Scoring Works
+
+<Steps>
+  <Step title="Submit URL">
+    Provide the URL of the content you want to score
+  </Step>
+  
+  <Step title="Content Analysis">
+    OpenSight fetches and analyzes the HTML content across multiple dimensions
+  </Step>
+  
+  <Step title="Score Generation">
+    Receive a comprehensive score (0-100) with dimension breakdowns
+  </Step>
+  
+  <Step title="Review Recommendations">
+    Get specific, actionable suggestions to improve your score
+  </Step>
+</Steps>
+
+## Scoring Dimensions
+
+Content is scored across 5 key dimensions, each contributing to the overall score:
+
+### 1. Structure Score (20% weight)
+
+Analyzes HTML structure and semantic elements:
+
+```typescript
+// From: packages/analyzer/src/content-scorer.ts:29-82
+let structureScore = 0;
+
+// H1 tag (up to 20 points)
+if (h1Count === 1) {
+  structureScore += 20;
+} else if (h1Count > 1) {
+  structureScore += 10;
+  recommendations.push('Consider having only one H1 tag per page for better SEO');
+}
+
+// Subheadings (up to 25 points)
+const totalSubheadings = h2Count + h3Count + h4Count + h5Count + h6Count;
+if (totalSubheadings >= 3) {
+  structureScore += 25;
+}
+
+// Lists (up to 20 points)
+if (listCount >= 2) {
+  structureScore += 20;
+}
+
+// Schema/JSON-LD (up to 20 points)
+if (schemaScripts > 0) {
+  structureScore += 20;
+} else {
+  recommendations.push('Add structured data (schema.org/JSON-LD) to enhance content discoverability');
+}
+
+// Semantic elements (up to 15 points)
+if (semanticElements > 0) {
+  structureScore += 15;
+}
+```
+
+<Accordion title="Structure Scoring Breakdown">
+  **Maximum: 100 points**
+  
+  - **H1 Tag** (20 points): Exactly one H1 tag
+  - **Subheadings** (25 points): 3+ H2-H6 tags
+  - **Lists** (20 points): 2+ `<ul>` or `<ol>` elements
+  - **Schema Markup** (20 points): JSON-LD structured data present
+  - **Semantic HTML** (15 points): Use of `<article>`, `<section>`, etc.
+</Accordion>
+
+### 2. Readability Score (25% weight)
+
+Uses the Flesch Reading Ease test to measure content readability:
+
+```typescript
+// From: packages/analyzer/src/content-scorer.ts:84-114
+let readabilityScore = 0;
+const textContent = $('body').text();
+
+if (textContent && textContent.trim().length > 0) {
+  // Flesch score: 90-100 = very easy, 60-70 = standard, 0-30 = very difficult
+  const fleschScore = readability.flesch(textContent);
+  readabilityScore = Math.max(0, Math.min(100, fleschScore));
+  
+  if (fleschScore < 60) {
+    recommendations.push('Improve readability by using shorter sentences and simpler words');
+  }
+}
+```
+
+<Tabs>
+  <Tab title="Flesch Score Guide">
+    **90-100**: Very Easy to read
+    - Average sentence length: 12 words
+    - Example: "See Spot run"
+    
+    **60-70**: Standard (Target Range)
+    - Average sentence length: 15-20 words
+    - Example: Most web content
+    
+    **30-50**: Difficult
+    - Average sentence length: 25+ words
+    - Example: Academic writing
+    
+    **0-30**: Very Difficult
+    - Average sentence length: 35+ words
+    - Example: Legal documents
+  </Tab>
+  
+  <Tab title="Improving Readability">
+    **Tips to improve your readability score:**
+    
+    1. **Shorten sentences**: Break long sentences into 2-3 shorter ones
+    2. **Use simpler words**: Replace complex words with common alternatives
+    3. **Add white space**: Use paragraphs, lists, and headings
+    4. **Active voice**: Prefer "We built" over "It was built by us"
+    5. **Target 60-70**: Aim for "standard" readability
+  </Tab>
+</Tabs>
+
+### 3. Freshness Score (15% weight)
+
+Evaluates content recency based on publication/modification dates:
+
+```typescript
+// From: packages/analyzer/src/content-scorer.ts:116-147
+let freshnessScore = 50; // Default neutral score
+
+const lastModified = $('meta[http-equiv="last-modified"]').attr('content') ||
+                     $('meta[name="last-modified"]').attr('content');
+const articleModified = $('meta[property="article:modified_time"]').attr('content');
+const publishedTime = $('meta[property="article:published_time"]').attr('content');
+
+if (lastModified || articleModified || publishedTime) {
+  const dateStr = lastModified || articleModified || publishedTime;
+  const modifiedDate = new Date(dateStr);
+  const now = new Date();
+  const daysOld = (now.getTime() - modifiedDate.getTime()) / (1000 * 60 * 60 * 24);
+  
+  if (daysOld < 30) {
+    freshnessScore = 100;
+  } else if (daysOld < 90) {
+    freshnessScore = 75;
+  } else if (daysOld < 180) {
+    freshnessScore = 50;
+  } else if (daysOld < 365) {
+    freshnessScore = 25;
+  } else {
+    freshnessScore = 10;
+    recommendations.push('Update your content to reflect current information');
+  }
+}
+```
+
+<Note>
+Add publication dates to your content using meta tags:
+
+```html
+<meta property="article:published_time" content="2024-01-15T10:00:00Z" />
+<meta property="article:modified_time" content="2024-03-01T14:30:00Z" />
+```
+</Note>
+
+### 4. Key Content Score (25% weight)
+
+Analyzes essential content elements:
+
+```typescript
+// From: packages/analyzer/src/content-scorer.ts:149-196
+let keyContentScore = 0;
+
+// Paragraphs (up to 25 points)
+if (paragraphCount >= 5) {
+  keyContentScore += 25;
+} else if (paragraphCount >= 3) {
+  keyContentScore += 15;
+}
+
+// Images (up to 25 points)
+if (imageCount >= 2) {
+  keyContentScore += 25;
+} else if (imageCount === 1) {
+  keyContentScore += 15;
+}
+
+// Video (up to 20 points)
+if (videoCount > 0) {
+  keyContentScore += 20;
+}
+
+// Links (up to 15 points)
+if (linkCount >= 3) {
+  keyContentScore += 15;
+}
+
+// Meta description (up to 10 points)
+if (metaDescription && metaDescription.length > 50 && metaDescription.length < 160) {
+  keyContentScore += 10;
+} else {
+  recommendations.push('Optimize your meta description (50-160 characters)');
+}
+
+// Page title (up to 5 points)
+if (pageTitle && pageTitle.length > 0) {
+  keyContentScore += 5;
+}
+```
+
+<Accordion title="Key Content Elements">
+  **Paragraphs** (25 points):
+  - 5+ paragraphs = full points
+  - 3-4 paragraphs = partial points
+  
+  **Images** (25 points):
+  - 2+ images = full points
+  - 1 image = partial points
+  
+  **Video** (20 points):
+  - Any embedded video (YouTube, Vimeo, native)
+  
+  **Links** (15 points):
+  - 3+ internal/external links
+  
+  **Meta Description** (10 points):
+  - 50-160 characters optimal
+  
+  **Page Title** (5 points):
+  - Present and non-empty
+</Accordion>
+
+### 5. Citation Score (15% weight)
+
+Measures credibility signals and data backing:
+
+```typescript
+// From: packages/analyzer/src/content-scorer.ts:198-228
+let citationScore = 0;
+
+// Blockquotes (up to 30 points)
+if (blockquoteCount > 0) {
+  citationScore += 30;
+} else {
+  recommendations.push('Include quotes or blockquotes to support your claims');
+}
+
+// Data attributes (up to 20 points)
+if (dataAttributes > 0) {
+  citationScore += 20;
+}
+
+// Citation keywords (up to 30 points)
+const citationPatterns = /cited|source|according to|research shows|studies indicate|data shows/gi;
+const citationMatches = textContent.match(citationPatterns) || [];
+
+if (citationMatches.length > 0) {
+  citationScore += 30;
+} else {
+  recommendations.push('Reference sources and cite data to increase credibility');
+}
+
+// Links (up to 20 points)
+if (linkCount > 0) {
+  citationScore += 20;
+}
+```
+
+<Warning>
+AI search engines favor content with credible sources and data. Include citations, quotes, and references to boost visibility.
+</Warning>
+
+## Overall Score Calculation
+
+The overall score is a weighted average of all dimension scores:
+
+```typescript
+// From: packages/analyzer/src/content-scorer.ts:230-244
+const weights = {
+  structure: 0.2,      // 20%
+  readability: 0.25,   // 25%
+  freshness: 0.15,     // 15%
+  keyContent: 0.25,    // 25%
+  citation: 0.15,      // 15%
+};
+
+const overallScore = Math.round(
+  structureScore * weights.structure +
+  readabilityScore * weights.readability +
+  freshnessScore * weights.freshness +
+  keyContentScore * weights.keyContent +
+  citationScore * weights.citation
+);
+```
+
+## Using the Content Scorer
+
+### Score a URL
+
+```http
+POST /api/content/score
+Content-Type: application/json
+
+{
+  "url": "https://example.com/article"
+}
+```
+
+**Response:**
+
+```json
+{
+  "score": {
+    "id": "score-123",
+    "url": "https://example.com/article",
+    "overallScore": 78,
+    "structureScore": 85,
+    "readabilityScore": 72,
+    "freshnessScore": 100,
+    "keyContentScore": 65,
+    "citationScore": 70,
+    "recommendations": [
+      "Add more paragraphs of substantive content",
+      "Include more internal and external links for context and SEO",
+      "Reference sources and cite data to increase credibility"
+    ],
+    "createdAt": "2024-03-01T14:30:00Z"
+  }
+}
+```
+
+### Daily Limits
+
+Scoring is subject to plan-based daily limits:
+
+```typescript
+// From: apps/api/src/controllers/content.controller.ts:9-24
+export async function scoreContent(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { url } = req.body;
+    const score = await contentService.scoreContent(req.user!.id, { url });
+    res.status(201).json({ score });
+  } catch (error) {
+    const err = error as Error;
+    if (err.message.includes('limit')) {
+      res.status(429).json({ error: err.message });
+    }
+  }
+}
+```
+
+<Note>
+If you hit your daily limit, you'll receive a 429 status code. Limits reset at midnight UTC.
+</Note>
+
+## Score History
+
+Track score changes over time to measure content improvements:
+
+```http
+GET /api/content/score/history?limit=50&offset=0
+```
+
+**Response:**
+
+```json
+{
+  "scores": [
+    {
+      "id": "score-123",
+      "url": "https://example.com/article",
+      "overallScore": 78,
+      "createdAt": "2024-03-01T14:30:00Z"
+    },
+    {
+      "id": "score-122",
+      "url": "https://example.com/guide",
+      "overallScore": 85,
+      "createdAt": "2024-02-28T10:15:00Z"
+    }
+  ],
+  "total": 142,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+## Optimization Workflow
+
+<Steps>
+  <Step title="Score Initial Content">
+    Get baseline scores for your existing content
+  </Step>
+  
+  <Step title="Review Recommendations">
+    Prioritize recommendations by impact (low-hanging fruit first)
+  </Step>
+  
+  <Step title="Implement Changes">
+    Update content based on recommendations:
+    - Add missing structural elements
+    - Improve readability
+    - Add fresh data/examples
+    - Include citations and sources
+  </Step>
+  
+  <Step title="Re-Score Content">
+    Score the updated content to measure improvement
+  </Step>
+  
+  <Step title="Monitor Visibility">
+    Track how score improvements affect AI search visibility
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Focus on High-Impact Changes">
+    **Priority 1: Structure & Key Content**
+    - These have the highest weights (20% + 25% = 45%)
+    - Often easiest to improve quickly
+    - Add headings, images, lists, and links
+    
+    **Priority 2: Readability**
+    - 25% weight, significant impact
+    - May require more effort to rewrite
+    - Use tools like Hemingway Editor
+    
+    **Priority 3: Citations & Freshness**
+    - 15% weight each (30% combined)
+    - Add sources, quotes, and recent data
+  </Accordion>
+  
+  <Accordion title="Score Before Publishing">
+    **Build scoring into your content workflow:**
+    
+    1. Write draft content
+    2. Publish to staging environment
+    3. Score the staging URL
+    4. Make improvements based on recommendations
+    5. Re-score until target score achieved (aim for 80+)
+    6. Publish to production
+  </Accordion>
+  
+  <Accordion title="Track Competitive Scores">
+    **Benchmark against competitors:**
+    
+    - Score top-ranking competitor content
+    - Identify what makes their content score higher
+    - Match or exceed their best practices
+    - Re-score quarterly to stay competitive
+  </Accordion>
+  
+  <Accordion title="Maintain Content Freshness">
+    **Keep scores high over time:**
+    
+    - Update content quarterly with fresh data
+    - Add new examples and case studies
+    - Refresh publication dates in meta tags
+    - Re-score after updates to verify improvements
+  </Accordion>
+</AccordionGroup>
+
+## Target Scores
+
+<CardGroup cols={3}>
+  <Card title="Excellent" icon="trophy">
+    **80-100**
+    
+    Highly optimized for AI search. Content meets all best practices.
+  </Card>
+  <Card title="Good" icon="thumbs-up">
+    **60-79**
+    
+    Solid content with room for improvement. Focus on low scores.
+  </Card>
+  <Card title="Needs Work" icon="wrench">
+    **0-59**
+    
+    Requires significant optimization. Follow all recommendations.
+  </Card>
+</CardGroup>
+
+## API Reference
+
+### Score Content
+```http
+POST /api/content/score
+Content-Type: application/json
+
+{
+  "url": "https://example.com/page"
+}
+```
+
+### Get Score History
+```http
+GET /api/content/score/history?limit=50&offset=0
+```
+
+Parameters:
+- `limit` (optional): Number of scores to return (default: 50)
+- `offset` (optional): Pagination offset (default: 0)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Brand Monitoring" icon="chart-line" href="/features/brand-monitoring">
+    Track how content improvements affect visibility
+  </Card>
+  <Card title="AI Engines" icon="brain" href="/features/ai-engines">
+    Understand what each engine values in content
+  </Card>
+  <Card title="Competitor Tracking" icon="users" href="/features/competitor-tracking">
+    Compare your content scores to competitors
+  </Card>
+  <Card title="Alerts" icon="bell" href="/features/alerts-notifications">
+    Get notified when content scores drop
+  </Card>
+</CardGroup>

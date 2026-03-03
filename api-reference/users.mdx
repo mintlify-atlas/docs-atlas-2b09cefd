@@ -1,0 +1,222 @@
+---
+title: 'Users'
+description: 'Manage user profile and account settings'
+---
+
+## Get User Profile
+
+<api method="GET" path="/api/users/profile" auth="required">
+  Get the authenticated user's profile information.
+</api>
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  User ID
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  User's email address
+</ResponseField>
+
+<ResponseField name="full_name" type="string" required>
+  User's full name
+</ResponseField>
+
+<ResponseField name="avatar_url" type="string | null" required>
+  URL to user's avatar image (null if not set)
+</ResponseField>
+
+<ResponseField name="email_verified" type="boolean" required>
+  Whether the email has been verified
+</ResponseField>
+
+<ResponseField name="plan_id" type="string" required>
+  Current subscription plan: free, starter, or growth
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  ISO 8601 timestamp of account creation
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/users/profile" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "id": "user_456",
+  "email": "john@example.com",
+  "full_name": "John Doe",
+  "avatar_url": "https://example.com/avatars/john.jpg",
+  "email_verified": true,
+  "plan_id": "starter",
+  "created_at": "2024-01-01T08:00:00Z"
+}
+```
+
+### Errors
+
+- **401 Unauthorized** - Invalid or missing authentication
+- **404 Not Found** - User profile not found
+
+---
+
+## Update User Profile
+
+<api method="PATCH" path="/api/users/profile" auth="required">
+  Update the authenticated user's profile information. All fields are optional.
+</api>
+
+### Request Body
+
+<ParamField body="name" type="string">
+  User's full name (1-255 characters)
+</ParamField>
+
+<ParamField body="avatar_url" type="string">
+  Valid URL to user's avatar image
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  User ID
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  User's email address (cannot be changed via this endpoint)
+</ResponseField>
+
+<ResponseField name="full_name" type="string" required>
+  Updated full name
+</ResponseField>
+
+<ResponseField name="avatar_url" type="string | null" required>
+  Updated avatar URL
+</ResponseField>
+
+<ResponseField name="email_verified" type="boolean" required>
+  Whether the email has been verified
+</ResponseField>
+
+<ResponseField name="plan_id" type="string" required>
+  Current subscription plan
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  ISO 8601 timestamp of account creation
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X PATCH "https://api.opensight.ai/api/users/profile" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Smith",
+    "avatar_url": "https://example.com/avatars/john-new.jpg"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "id": "user_456",
+  "email": "john@example.com",
+  "full_name": "John Smith",
+  "avatar_url": "https://example.com/avatars/john-new.jpg",
+  "email_verified": true,
+  "plan_id": "starter",
+  "created_at": "2024-01-01T08:00:00Z"
+}
+```
+
+### Errors
+
+- **401 Unauthorized** - Invalid or missing authentication
+- **404 Not Found** - User profile not found
+- **400 Bad Request** - Invalid input data (e.g., invalid URL format)
+
+---
+
+## Change Password
+
+<api method="PATCH" path="/api/users/password" auth="required">
+  Change the authenticated user's password. Requires current password for verification.
+</api>
+
+### Request Body
+
+<ParamField body="current_password" type="string" required>
+  User's current password
+</ParamField>
+
+<ParamField body="new_password" type="string" required>
+  New password (min 8 characters, must contain 1 uppercase letter and 1 number)
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success confirmation message
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X PATCH "https://api.opensight.ai/api/users/password" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "OldPassword123",
+    "new_password": "NewPassword456"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "message": "Password changed successfully"
+}
+```
+
+### Errors
+
+- **401 Unauthorized** - Invalid or missing authentication
+- **404 Not Found** - User not found
+- **400 Bad Request** - Current password is incorrect or new password doesn't meet requirements
+
+### Password Requirements
+
+- Minimum 8 characters
+- At least 1 uppercase letter (A-Z)
+- At least 1 number (0-9)
+
+<Note>
+  After changing your password, all existing sessions remain valid. To force logout from all devices, users should revoke their API keys and create new ones.
+</Note>
+
+---
+
+## Account Information
+
+The user profile includes information about the current subscription plan and its limits:
+
+### Plan Types
+
+| Plan    | Brands | Prompts | Competitors | API Keys | Content Scores/Day |
+|---------|--------|---------|-------------|----------|--------------------|
+| Free    | 1      | 25      | 2           | 2        | 5                  |
+| Starter | 3      | 100     | 5           | 5        | 25                 |
+| Growth  | 10     | 250     | 5           | 20       | 100                |
+
+To upgrade or downgrade plans, users must use the billing portal or checkout flow (not available via API).

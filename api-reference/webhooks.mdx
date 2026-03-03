@@ -1,0 +1,176 @@
+---
+title: 'Webhooks'
+description: 'Receive real-time webhook events for subscription and payment updates'
+---
+
+## Stripe Webhook
+
+<api method="POST" path="/api/webhooks/stripe" auth="stripe-signature">
+  Receive Stripe webhook events for subscription lifecycle management. This endpoint is called by Stripe, not by your application.
+</api>
+
+<Note>
+  This endpoint uses Stripe signature verification for authentication. You must configure your Stripe webhook secret in your environment variables.
+</Note>
+
+### Authentication
+
+Instead of an API key, this endpoint requires a valid Stripe signature in the `stripe-signature` header. Stripe automatically includes this header when sending webhook events.
+
+### Supported Events
+
+OpenSight processes the following Stripe webhook events:
+
+#### checkout.session.completed
+
+Triggered when a user completes a checkout session and subscribes to a plan.
+
+**Actions:**
+- Updates user's plan_id based on the subscription
+- Stores Stripe subscription ID
+- Links Stripe customer ID to user account
+
+#### customer.subscription.updated
+
+Triggered when a subscription is modified (upgrade, downgrade, renewal).
+
+**Actions:**
+- Updates user's plan_id to match new subscription tier
+- Updates subscription ID
+- Handles plan changes automatically
+
+#### customer.subscription.deleted
+
+Triggered when a subscription is cancelled or expires.
+
+**Actions:**
+- Downgrades user to free plan
+- Removes subscription ID from user record
+- Maintains user data for future resubscription
+
+#### invoice.payment_failed
+
+Triggered when a subscription payment fails.
+
+**Actions:**
+- Logs payment failure
+- Triggers notification to user (in production)
+- Allows Stripe to handle retry logic
+
+### Request Headers
+
+<ParamField header="stripe-signature" type="string" required>
+  Stripe webhook signature for verification
+</ParamField>
+
+<ParamField header="content-type" type="string" required>
+  Must be `application/json`
+</ParamField>
+
+### Request Body
+
+The request body follows Stripe's webhook event structure:
+
+<ParamField body="type" type="string" required>
+  Event type (e.g., checkout.session.completed)
+</ParamField>
+
+<ParamField body="data" type="object" required>
+  Event data object
+  
+  <Expandable title="Data properties">
+    <ParamField body="object" type="object" required>
+      The Stripe resource object (subscription, invoice, etc.)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response
+
+<ResponseField name="received" type="boolean">
+  Always returns true to acknowledge receipt
+</ResponseField>
+
+### Example Event (checkout.session.completed)
+
+```json
+{
+  "type": "checkout.session.completed",
+  "data": {
+    "object": {
+      "id": "cs_test_123",
+      "customer": "cus_123",
+      "subscription": "sub_123",
+      "metadata": {
+        "plan": "starter"
+      },
+      "payment_status": "paid"
+    }
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "received": true
+}
+```
+
+### Error Responses
+
+<ResponseField name="error" type="string">
+  Error message
+</ResponseField>
+
+- **401 Unauthorized** - Invalid Stripe signature
+- **200 OK** - Even on processing errors (to prevent Stripe retries)
+
+### Webhook Configuration
+
+1. **Stripe Dashboard Setup:**
+   - Navigate to Developers → Webhooks in your Stripe dashboard
+   - Add endpoint: `https://api.opensight.ai/api/webhooks/stripe`
+   - Select events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+   - Copy the webhook signing secret
+
+2. **Environment Configuration:**
+   ```bash
+   STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+   ```
+
+3. **Testing Webhooks:**
+   Use Stripe CLI to test webhooks locally:
+   ```bash
+   stripe listen --forward-to localhost:3000/api/webhooks/stripe
+   stripe trigger checkout.session.completed
+   ```
+
+### Security
+
+- All webhook events are verified using Stripe's signature validation
+- Invalid signatures are rejected with 401 Unauthorized
+- Webhook secret must be kept secure and never exposed
+- Events are logged for audit purposes
+
+### Best Practices
+
+1. **Idempotency**: OpenSight handles duplicate events gracefully
+2. **Logging**: All events are logged with correlation IDs
+3. **Error Handling**: Processing errors return 200 OK to prevent Stripe retries
+4. **User Data**: Subscription changes are applied immediately to user accounts
+
+### Plan Mapping
+
+Stripe subscription price IDs are mapped to OpenSight plan IDs:
+
+| Stripe Price ID Pattern | OpenSight Plan |
+|------------------------|----------------|
+| Contains "starter"     | starter        |
+| Contains "growth"      | growth         |
+| No subscription        | free           |
+
+<Warning>
+  Ensure your Stripe price IDs follow this naming convention, or customize the mapping logic in the webhook handler.
+</Warning>

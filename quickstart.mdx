@@ -1,80 +1,356 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quickstart Guide"
+description: "Get started with OpenSight in under 5 minutes - from account creation to your first brand monitoring workflow"
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
+This guide will walk you through setting up OpenSight and monitoring your first brand across AI search engines. By the end, you'll have:
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+- Created an OpenSight account
+- Added your first brand
+- Configured monitoring prompts
+- Set up competitor tracking
+- Viewed your first AI visibility dashboard
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  **Prefer to self-host?** Check out our [installation guide](/installation) for Docker deployment instructions.
 </Note>
+
+## Step 1: Create Your Account
+
+<Steps>
+  <Step title="Sign up">
+    Visit [opensight.dev](https://opensight.dev) and click **Get Started** to create your account.
+    
+    You can sign up with:
+    - Email and password
+    - GitHub OAuth
+    - Google OAuth
+  </Step>
+  
+  <Step title="Verify your email">
+    Check your inbox for the verification email and click the confirmation link.
+  </Step>
+</Steps>
+
+## Step 2: Add Your First Brand
+
+Once logged in, you'll be guided through the onboarding flow to create your first brand.
+
+<Steps>
+  <Step title="Enter brand details">
+    Provide your brand information:
+    
+    - **Brand Name**: Your company or product name
+    - **Website URL**: Your primary website (must be a valid URL)
+    - **Industry**: Select your industry from the dropdown (optional)
+    
+    ```typescript
+    // Example brand data
+    {
+      name: "Acme Corp",
+      website_url: "https://acme.com",
+      industry: "saas"
+    }
+    ```
+  </Step>
+  
+  <Step title="Select analysis prompts">
+    Choose from 20+ pre-generated prompts or add your own custom prompts. These are the questions OpenSight will ask AI engines about your brand.
+    
+    **Example prompts:**
+    - "What are the best project management tools for remote teams?"
+    - "How does [Your Brand] compare to competitors?"
+    - "What are customers saying about [Your Brand]?"
+    
+    <Tip>
+      Start with 5-10 prompts that represent the most common questions your potential customers ask.
+    </Tip>
+  </Step>
+  
+  <Step title="Add competitors (optional)">
+    Add up to 5 competitors to track alongside your brand:
+    
+    - Competitor name
+    - Website URL
+    
+    You can skip this step and add competitors later from the dashboard.
+  </Step>
+  
+  <Step title="Review and confirm">
+    Review your setup and click **Start Analysis** to begin monitoring.
+    
+    OpenSight will immediately start:
+    - Querying AI engines with your prompts
+    - Analyzing sentiment and positioning
+    - Building your visibility baseline
+  </Step>
+</Steps>
+
+<Info>
+  Initial analysis typically completes within 5-10 minutes. You'll receive a notification when your first results are ready.
+</Info>
+
+## Step 3: Explore Your Dashboard
+
+Once the initial analysis completes, you'll see your AI visibility dashboard.
+
+### Overview Metrics
+
+Your dashboard displays four key metrics:
+
+- **Overall Score**: Aggregate visibility score (0-100%)
+- **Total Mentions**: Number of times AI engines mentioned your brand
+- **Positive Sentiment**: Percentage of positive mentions
+- **Active Prompts**: Number of prompts being monitored
+
+```typescript
+// Dashboard data structure
+{
+  overallScore: 85.4,
+  totalMentions: 142,
+  sentimentBreakdown: {
+    positive: 78.5,
+    neutral: 15.3,
+    negative: 6.2
+  },
+  totalPromptsChecked: 10
+}
+```
+
+### Engine Performance
+
+See how your brand performs across each AI engine:
+
+- **ChatGPT**: GPT-4 responses
+- **Perplexity**: Real-time search results
+- **Google AI**: AI Overview appearances
+
+### Visibility Timeline
+
+Track your visibility trends over time with interactive charts showing:
+- Daily mention frequency
+- Sentiment shifts
+- Competitor comparisons
+
+## Step 4: Monitor Competitors
+
+If you added competitors during onboarding, navigate to **Dashboard** > **Competitors** to see:
+
+<CardGroup cols={2}>
+  <Card title="Side-by-Side Comparison" icon="chart-bar">
+    Compare mention frequency, sentiment, and visibility scores with competitors.
+  </Card>
+  <Card title="Position Tracking" icon="trophy">
+    See where you rank in AI responses compared to competitors.
+  </Card>
+  <Card title="Feature Mentions" icon="list-check">
+    Track which features AI engines mention most for each competitor.
+  </Card>
+  <Card title="Trend Analysis" icon="chart-line">
+    Identify when competitors gain or lose visibility relative to your brand.
+  </Card>
+</CardGroup>
+
+## Step 5: Set Up Alerts
+
+Stay informed about important changes with automated alerts.
+
+<Steps>
+  <Step title="Navigate to Settings">
+    Go to **Settings** > **Notifications** to configure alert preferences.
+  </Step>
+  
+  <Step title="Enable alert types">
+    Choose which events trigger notifications:
+    
+    - **Visibility Drop**: Alert when your mention frequency decreases
+    - **Sentiment Shift**: Notify on significant sentiment changes
+    - **New Competitor**: Alert when a new competitor appears in responses
+    - **New Mention**: Notify on every new brand mention (high volume)
+  </Step>
+  
+  <Step title="Configure delivery">
+    Set how you receive alerts:
+    
+    - **Email Frequency**: Instant, Daily Digest, or Weekly Summary
+    - **Webhook URL**: Send alerts to your preferred tools (Slack, Discord, etc.)
+    
+    <Info>
+      Webhook integration requires a Growth plan or higher.
+    </Info>
+  </Step>
+</Steps>
+
+## Step 6: Analyze Content Performance
+
+Use the Content Scoring feature to optimize specific pages for AI visibility.
+
+<Steps>
+  <Step title="Navigate to Content Score">
+    Go to **Dashboard** > **Content Score** in the sidebar.
+  </Step>
+  
+  <Step title="Submit a URL">
+    Enter a URL from your website to analyze:
+    
+    ```typescript
+    // Example: Analyze your homepage
+    url: "https://acme.com"
+    ```
+  </Step>
+  
+  <Step title="Review your score">
+    OpenSight analyzes your content and provides:
+    
+    - **Overall Score**: 0-100 rating
+    - **Dimension Breakdown**: Scores for relevance, authority, clarity, etc.
+    - **Recommendations**: Prioritized actions to improve AI visibility
+    
+    <Accordion title="Score Breakdown Example">
+      ```json
+      {
+        "totalScore": 78,
+        "dimensions": [
+          { "name": "Relevance", "score": 85 },
+          { "name": "Authority", "score": 72 },
+          { "name": "Clarity", "score": 80 },
+          { "name": "Structure", "score": 75 }
+        ],
+        "recommendations": [
+          {
+            "dimension": "Authority",
+            "action": "Add more authoritative backlinks",
+            "severity": "high"
+          }
+        ]
+      }
+      ```
+    </Accordion>
+  </Step>
+  
+  <Step title="Implement recommendations">
+    Follow the actionable recommendations to improve your score. Track improvements by re-analyzing the URL after changes.
+  </Step>
+</Steps>
+
+## Step 7: Access the API (Optional)
+
+Integrate OpenSight data into your existing workflows with our REST API.
+
+<Steps>
+  <Step title="Generate an API key">
+    Go to **Settings** > **API Keys** and click **Create API Key**.
+    
+    <Warning>
+      API keys are only shown once. Store your key securely.
+    </Warning>
+  </Step>
+  
+  <Step title="Make your first request">
+    Use your API key to fetch brand data:
+    
+    ```bash
+    curl -X GET "http://localhost:4000/api/brands" \
+      -H "Authorization: Bearer YOUR_API_KEY"
+    ```
+    
+    Example response:
+    ```json
+    [
+      {
+        "id": "brand_123",
+        "name": "Acme Corp",
+        "website_url": "https://acme.com",
+        "industry": "saas",
+        "created_at": "2026-03-03T10:00:00Z"
+      }
+    ]
+    ```
+  </Step>
+  
+  <Step title="Explore API endpoints">
+    Check out the [API Reference](/api-reference/overview) for complete documentation of all available endpoints.
+  </Step>
+</Steps>
+
+## What's Next?
+
+Now that you've set up your first brand, explore these advanced features:
+
+<CardGroup cols={2}>
+  <Card
+    title="Advanced Prompts"
+    icon="wand-magic-sparkles"
+    href="/api-reference/prompts"
+  >
+    Create sophisticated monitoring prompts with tags and categories.
+  </Card>
+  <Card
+    title="Team Collaboration"
+    icon="users"
+    href="/platform/admin-panel"
+  >
+    Invite team members and manage permissions.
+  </Card>
+  <Card
+    title="Webhook Integration"
+    icon="plug"
+    href="/platform/integrations"
+  >
+    Connect OpenSight to Slack, Discord, or custom webhooks.
+  </Card>
+  <Card
+    title="Export Reports"
+    icon="file-export"
+  >
+    Generate PDF reports for stakeholders (coming soon).
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="My analysis is taking longer than expected">
+    Initial analysis can take 5-10 minutes depending on the number of prompts. If it takes longer:
+    - Check the status indicator in the dashboard
+    - Ensure your prompts are clearly worded
+    - Contact support if stuck for more than 15 minutes
+  </Accordion>
+  
+  <Accordion title="I'm not seeing any mentions">
+    This could mean:
+    - Your brand is new and not yet indexed by AI engines
+    - Your prompts aren't relevant to your brand
+    - Try broader prompts or industry-specific questions
+    - Add more context to your brand profile
+  </Accordion>
+  
+  <Accordion title="How do I change my active brand?">
+    Use the brand selector in the top navigation bar to switch between brands. Your dashboard will update to show the selected brand's data.
+  </Accordion>
+  
+  <Accordion title="Can I modify prompts after setup?">
+    Yes! Go to **Dashboard** > **Prompts** to add, edit, or delete monitoring prompts at any time.
+  </Accordion>
+</AccordionGroup>
+
+## Need Help?
+
+<CardGroup cols={2}>
+  <Card
+    title="Documentation"
+    icon="book"
+    href="/features/brand-monitoring"
+  >
+    Explore detailed feature documentation.
+  </Card>
+  <Card
+    title="GitHub Issues"
+    icon="github"
+    href="https://github.com/shuvamk/opensight/issues"
+  >
+    Report bugs or request features.
+  </Card>
+</CardGroup>

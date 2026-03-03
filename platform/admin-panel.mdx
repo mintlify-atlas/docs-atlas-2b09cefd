@@ -1,0 +1,205 @@
+---
+title: 'Admin Panel'
+description: 'Admin panel features and usage for OpenSight platform management'
+---
+
+## Overview
+
+The OpenSight admin panel is a Next.js application located in `apps/admin/` that provides platform administrators with tools to manage users, monitor system health, and view analytics.
+
+## Accessing the Admin Panel
+
+The admin panel is a separate application from the main web app:
+
+- **Main App**: User-facing dashboard (apps/web)
+- **Admin Panel**: Platform management (apps/admin)
+
+<Note>
+  Admin access requires an entry in the `admin_users` table. Contact your system administrator for access.
+</Note>
+
+## Authentication
+
+Admin authentication is handled separately from regular user authentication:
+
+```typescript apps/admin/app/api/auth/login/route.ts
+// Admin login endpoint
+POST /api/auth/login
+{
+  "email": "admin@example.com",
+  "password": "secure_password"
+}
+```
+
+Admin sessions are verified using the `verifySession()` function defined in `apps/admin/lib/auth.ts`.
+
+## Dashboard Overview
+
+The main dashboard (`apps/admin/app/(dashboard)/page.tsx`) displays key platform metrics:
+
+### System Statistics
+
+<CardGroup cols={4}>
+  <Card title="Total Users" icon="users">
+    Count of all registered users in the platform
+  </Card>
+  <Card title="Brands" icon="building">
+    Total number of brands being monitored
+  </Card>
+  <Card title="Admins" icon="shield">
+    Number of admin accounts with panel access
+  </Card>
+  <Card title="System Health" icon="activity">
+    Overall platform operational status
+  </Card>
+</CardGroup>
+
+### Statistics Implementation
+
+```typescript apps/admin/app/(dashboard)/page.tsx
+async function getStats() {
+  const [userCount] = await db.select({ value: count() }).from(users);
+  const [brandCount] = await db.select({ value: count() }).from(brands);
+  const [adminCount] = await db.select({ value: count() }).from(adminUsers);
+
+  return {
+    users: userCount.value,
+    brands: brandCount.value,
+    admins: adminCount.value,
+  };
+}
+```
+
+## User Management
+
+The Users page (`apps/admin/app/(dashboard)/users/page.tsx`) provides a complete view of registered users.
+
+### User List Features
+
+- **User Details**: Name, email, plan tier, verification status
+- **Sorting**: Users ordered by creation date (newest first)
+- **Plan Badges**: Visual indicators for Free, Starter, and Growth plans
+- **Verification Status**: Email verification tracking
+- **Join Date**: Account creation timestamp
+
+### User Data Structure
+
+```typescript apps/admin/app/(dashboard)/users/page.tsx
+async function getUsers() {
+  return db
+    .select({
+      id: users.id,
+      email: users.email,
+      fullName: users.fullName,
+      emailVerified: users.emailVerified,
+      planId: users.planId,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .orderBy(desc(users.createdAt))
+    .limit(50);
+}
+```
+
+<Note>
+  The user list is currently limited to the 50 most recent users. For full user management, consider implementing pagination.
+</Note>
+
+## Reports
+
+The Reports page (`apps/admin/app/(dashboard)/reports/page.tsx`) is designed for analytics and system metrics.
+
+<Warning>
+  The Reports section is currently under construction. Future features will include:
+  - User activity tracking
+  - Brand performance metrics
+  - API usage statistics
+  - Subscription revenue analytics
+</Warning>
+
+## Settings
+
+The Settings page (`apps/admin/app/(dashboard)/settings/page.tsx`) will provide platform configuration options.
+
+<Info>
+  Settings features are planned to include:
+  - Admin user management
+  - System configuration
+  - Feature flags
+  - Integration settings
+</Info>
+
+## Admin Panel Structure
+
+The admin panel uses a dashboard layout with sidebar navigation:
+
+### Navigation Components
+
+- **AdminHeader** (`components/admin-header.tsx`): Top navigation bar with user menu
+- **AdminSidebar** (`components/admin-sidebar.tsx`): Left sidebar with main navigation links
+
+### Available Routes
+
+| Route | Purpose | Status |
+|-------|---------|--------|
+| `/` | Dashboard overview | ✅ Active |
+| `/users` | User management | ✅ Active |
+| `/reports` | Analytics and reporting | 🚧 Planned |
+| `/settings` | System settings | 🚧 Planned |
+
+## Database Access
+
+The admin panel connects directly to the database using Drizzle ORM:
+
+```typescript apps/admin/lib/db.ts
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { users, brands, adminUsers } from '@opensight/db';
+
+export const db = drizzle(...);
+```
+
+<Note>
+  Admin panel queries have direct database access. Always verify admin authentication before executing queries.
+</Note>
+
+## Security Considerations
+
+### Authentication Requirements
+
+1. **Session Verification**: All admin routes check authentication via `verifySession()`
+2. **Admin Table**: Only users in `admin_users` table can access the panel
+3. **Separate Sessions**: Admin sessions are isolated from regular user sessions
+
+### Best Practices
+
+<Warning>
+  - Never expose admin endpoints publicly
+  - Use strong passwords for admin accounts
+  - Implement IP whitelisting for production deployments
+  - Regularly audit admin user access
+</Warning>
+
+## Seeding Admin Users
+
+For development, you can seed an admin user using:
+
+```bash
+POST /api/auth/seed
+```
+
+This endpoint is defined in `apps/admin/app/api/auth/seed/route.ts`.
+
+<Warning>
+  The seed endpoint should be disabled in production environments.
+</Warning>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Plans & Pricing" icon="dollar" href="/platform/plans-pricing">
+    View subscription tiers and user plan limits
+  </Card>
+  <Card title="Integrations" icon="plug" href="/platform/integrations">
+    Configure platform integrations and services
+  </Card>
+</CardGroup>

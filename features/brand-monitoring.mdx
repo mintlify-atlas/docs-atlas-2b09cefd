@@ -1,0 +1,340 @@
+---
+title: 'Brand Monitoring'
+description: 'Track your brand visibility across AI search engines and analyze performance metrics'
+icon: 'chart-line'
+---
+
+## Overview
+
+OpenSight's Brand Monitoring feature provides comprehensive tracking of your brand's visibility across ChatGPT, Perplexity, and Google AI Overview. Monitor how often your brand appears in AI-generated responses, track visibility scores, and analyze sentiment trends over time.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-Brand Tracking" icon="buildings">
+    Monitor multiple brands from a single dashboard with plan-based limits
+  </Card>
+  <Card title="Real-Time Scores" icon="gauge-high">
+    Get up-to-date visibility scores based on mentions, position, and sentiment
+  </Card>
+  <Card title="Historical Trends" icon="chart-area">
+    View 7, 14, 30, or 90-day trend data to track performance over time
+  </Card>
+  <Card title="Pin Important Brands" icon="thumbtack">
+    Pin your most important brands to keep them at the top of your list
+  </Card>
+</CardGroup>
+
+## Creating a Brand
+
+<Steps>
+  <Step title="Navigate to Brands">
+    From your dashboard, click "Add Brand" or navigate to the brands section
+  </Step>
+  
+  <Step title="Enter Brand Details">
+    Provide the following information:
+    - **Brand Name**: The name of your brand (used for mention detection)
+    - **Website URL**: Your brand's website (domain extracted for tracking)
+    - **Industry** (optional): Helps contextualize your brand
+  </Step>
+  
+  <Step title="Create Brand">
+    Click "Create Brand" - the system will verify you haven't exceeded your plan limits
+  </Step>
+</Steps>
+
+<Note>
+Brand limits vary by plan. Free plans allow 1 brand, while paid plans support more. The system checks limits before creation.
+</Note>
+
+```typescript
+// API: POST /api/brands
+{
+  "name": "Acme Corp",
+  "website_url": "https://acme.com",
+  "industry": "Technology"
+}
+```
+
+## Brand Dashboard
+
+The brand dashboard aggregates all visibility data from the latest snapshot:
+
+### Dashboard Metrics
+
+<Tabs>
+  <Tab title="Overall Score">
+    The overall visibility score (0-100) is calculated from the latest snapshot across all AI engines:
+    
+    ```typescript
+    // From: apps/api/src/services/brand.service.ts:180-292
+    const dashboard = {
+      overallScore: snapshot.overallScore,
+      chatgptScore: snapshot.chatgptScore ?? 0,
+      perplexityScore: snapshot.perplexityScore ?? 0,
+      googleAioScore: snapshot.googleAioScore ?? 0,
+      // ...
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Sentiment Breakdown">
+    View the distribution of sentiment across all mentions:
+    - **Positive**: Mentions with sentiment score > 0.05
+    - **Neutral**: Mentions with sentiment score between -0.05 and 0.05
+    - **Negative**: Mentions with sentiment score < -0.05
+    
+    ```typescript
+    sentimentBreakdown: {
+      positive: Number(snapshot.sentimentPositive ?? 0),
+      neutral: Number(snapshot.sentimentNeutral ?? 0),
+      negative: Number(snapshot.sentimentNegative ?? 0)
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Recent Changes">
+    The dashboard tracks up to 10 recent changes by comparing consecutive snapshots:
+    
+    - Score increases/decreases
+    - Mention count changes
+    - Timestamps for each change
+    
+    ```typescript
+    // From: apps/api/src/services/brand.service.ts:236-270
+    const scoreDelta = newer.overallScore - older.overallScore;
+    if (scoreDelta !== 0) {
+      recent_changes.push({
+        type: scoreDelta > 0 ? 'up' : 'down',
+        description: `Overall visibility score ${scoreDelta > 0 ? 'increased' : 'decreased'} by ${Math.abs(scoreDelta)}`,
+        timestamp: newer.createdAt.toISOString()
+      });
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Visibility Score Calculation
+
+OpenSight uses a sophisticated scoring algorithm to calculate brand visibility:
+
+<Accordion title="Score Components (0-100 scale)">
+  The visibility score is calculated using multiple factors:
+  
+  ```typescript
+  // From: packages/analyzer/src/visibility-calculator.ts:23-54
+  export function calculateVisibilityScore(params: VisibilityParams): number {
+    let score = 0;
+    
+    // Base score for mention
+    if (params.mentioned) {
+      score += 40;
+      
+      // Position bonus (degrades for later positions)
+      if (params.position !== null && params.position > 0) {
+        const positionBonus = Math.max(0, 20 - (params.position - 1) * 2);
+        score += positionBonus;
+      }
+    }
+    
+    // Sentiment bonus
+    if (params.sentimentScore > 0.05) {
+      score += 15;
+    }
+    
+    // Citation bonus
+    if (params.hasCitation) {
+      score += 15;
+    }
+    
+    // Competitor mentioning bonus (fewer competitors = higher score)
+    if (params.competitorCount < 3) {
+      score += 10;
+    }
+    
+    return Math.min(score, 100);
+  }
+  ```
+  
+  **Scoring Breakdown:**
+  - **Mentioned** (+40 points): Brand appears in the response
+  - **Position Bonus** (up to +20 points): Earlier mentions score higher
+  - **Positive Sentiment** (+15 points): Sentiment score > 0.05
+  - **Citation Present** (+15 points): Brand URL is cited
+  - **Low Competitor Mentions** (+10 points): Fewer than 3 competitors mentioned
+</Accordion>
+
+## Trend Analysis
+
+Track your brand's performance over time with customizable date ranges:
+
+### Available Time Ranges
+- **7 days**: Week-over-week changes
+- **14 days**: Two-week trends
+- **30 days**: Monthly performance (default)
+- **90 days**: Quarterly analysis
+
+```typescript
+// API: GET /api/brands/:id/trends?range=30d
+{
+  "brandId": "brand-123",
+  "rangeInDays": 30,
+  "dataPoints": [
+    {
+      "date": "2024-01-15",
+      "overallScore": 72,
+      "chatgptScore": 68,
+      "perplexityScore": 75,
+      "googleAioScore": 73,
+      "mentions": 24,
+      "sentiment": {
+        "positive": 12,
+        "neutral": 10,
+        "negative": 2
+      }
+    }
+  ]
+}
+```
+
+<Note>
+Trends are calculated from visibility snapshots stored in the database. Each snapshot captures a point-in-time view of your brand's visibility across all AI engines.
+</Note>
+
+## Managing Brands
+
+### Update Brand Details
+
+Modify brand information at any time:
+
+```typescript
+// API: PATCH /api/brands/:id
+{
+  "name": "Updated Brand Name",
+  "website_url": "https://newurl.com",
+  "industry": "SaaS",
+  "pinned": true  // Pin to top of list
+}
+```
+
+### Pin Brands
+
+Pin important brands to keep them at the top of your brand list. Pinned brands are sorted first, followed by creation date.
+
+```typescript
+// From: apps/api/src/services/brand.service.ts:20-36
+const userBrands = await db
+  .select({...})
+  .from(brands)
+  .where(eq(brands.userId, userId))
+  .orderBy(desc(brands.pinned), desc(brands.createdAt));
+```
+
+### Delete Brand
+
+Remove brands you no longer need to track:
+
+<Warning>
+Deleting a brand will remove all associated data including visibility snapshots, prompt results, and competitor comparisons. This action cannot be undone.
+</Warning>
+
+```typescript
+// API: DELETE /api/brands/:id
+// Response: { "success": true }
+```
+
+## Mention Detection
+
+OpenSight uses intelligent mention extraction to find your brand in AI responses:
+
+```typescript
+// From: packages/analyzer/src/mention-extractor.ts:24-80
+export function extractMentions(
+  text: string,
+  brandName: string,
+  brandUrl: string
+): BrandMentionResult {
+  // Case-insensitive search for brand name
+  const lowerText = text.toLowerCase();
+  const lowerBrandName = brandName.toLowerCase();
+  
+  // Extract domain from URL
+  const url = new URL(brandUrl);
+  const domain = url.hostname.toLowerCase().replace('www.', '');
+  
+  // Count mentions of both brand name and domain
+  // Calculate position (1-indexed paragraph/sentence position)
+  
+  return {
+    mentioned: mentionCount > 0,
+    position: position || null,
+    mentionCount
+  };
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Optimize Brand Name">
+    - Use the exact name that appears in AI responses
+    - Include common variations or abbreviations
+    - Test mention detection with sample queries
+  </Accordion>
+  
+  <Accordion title="Monitor Regularly">
+    - Check dashboard daily for visibility changes
+    - Set up alerts for significant drops (see [Alerts & Notifications](/features/alerts-notifications))
+    - Review trends weekly to identify patterns
+  </Accordion>
+  
+  <Accordion title="Compare with Competitors">
+    - Add competitors to understand market share
+    - Track share of voice metrics
+    - Identify gaps in visibility (see [Competitor Tracking](/features/competitor-tracking))
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+### List Brands
+```http
+GET /api/brands
+```
+Returns all brands for the authenticated user with latest visibility scores.
+
+### Get Brand Details
+```http
+GET /api/brands/:id
+```
+Returns detailed information for a specific brand.
+
+### Get Brand Dashboard
+```http
+GET /api/brands/:id/dashboard
+```
+Returns aggregated dashboard data from the latest snapshot.
+
+### Get Brand Trends
+```http
+GET /api/brands/:id/trends?range=30d
+```
+Returns historical trend data for the specified time range.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Competitor Tracking" icon="users" href="/features/competitor-tracking">
+    Add competitors and track share of voice
+  </Card>
+  <Card title="AI Engines" icon="brain" href="/features/ai-engines">
+    Learn about supported AI search engines
+  </Card>
+  <Card title="Content Scoring" icon="star" href="/features/content-scoring">
+    Score your content for AI visibility
+  </Card>
+  <Card title="Alerts" icon="bell" href="/features/alerts-notifications">
+    Set up alerts for visibility changes
+  </Card>
+</CardGroup>

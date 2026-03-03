@@ -1,0 +1,387 @@
+---
+title: 'Competitor Tracking'
+description: 'Monitor competitor visibility and analyze share of voice in AI search results'
+icon: 'users'
+---
+
+## Overview
+
+Competitor Tracking helps you understand how your brand stacks up against competitors in AI search results. Track competitor mentions, analyze share of voice, and identify visibility gaps to inform your SEO and content strategy.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-Competitor Tracking" icon="users-viewfinder">
+    Track multiple competitors per brand (plan-based limits)
+  </Card>
+  <Card title="Share of Voice" icon="chart-pie">
+    See what percentage of AI mentions go to you vs competitors
+  </Card>
+  <Card title="Gap Analysis" icon="chart-column">
+    Identify visibility gaps between your brand and competitors
+  </Card>
+  <Card title="Leaderboard View" icon="trophy">
+    Ranked comparison of all brands by mention count
+  </Card>
+</CardGroup>
+
+## Adding Competitors
+
+<Steps>
+  <Step title="Select a Brand">
+    Navigate to the brand you want to track competitors for
+  </Step>
+  
+  <Step title="Add Competitor">
+    Click "Add Competitor" and provide:
+    - **Competitor Name**: The name to track in AI responses
+    - **Website URL**: The competitor's website
+  </Step>
+  
+  <Step title="Verify Limits">
+    The system checks your plan's competitor limit before adding
+  </Step>
+</Steps>
+
+<Note>
+Competitor limits vary by plan. The API validates limits before allowing new competitors:
+
+```typescript
+// From: apps/api/src/controllers/competitor.controller.ts:36-44
+const planLimits = PLAN_LIMITS[req.user!.plan_id];
+const currentCount = await competitorService.getCompetitorCount(brandId);
+
+if (currentCount >= planLimits.competitors) {
+  res.status(403).json({
+    error: `You have reached the maximum number of competitors (${planLimits.competitors}) for your plan`
+  });
+}
+```
+</Note>
+
+## Competitor Comparison
+
+Get comprehensive comparison data for your brand vs all competitors:
+
+### API Endpoint
+
+```typescript
+// API: GET /api/brands/:brandId/competitors/comparison
+{
+  "brand": {
+    "id": "brand-123",
+    "name": "Acme Corp",
+    "websiteUrl": "https://acme.com",
+    "mentions": 156,
+    "shareOfVoice": "45.2",
+    "visibilityGap": "0",
+    "rank": 1
+  },
+  "competitors": [
+    {
+      "id": "comp-456",
+      "name": "Competitor A",
+      "websiteUrl": "https://competitor-a.com",
+      "mentions": 89,
+      "shareOfVoice": "25.8",
+      "visibilityGap": "19.4",
+      "rank": 2
+    }
+  ],
+  "leaderboard": [
+    // All brands ranked by mentions
+  ]
+}
+```
+
+### Share of Voice Calculation
+
+Share of voice represents the percentage of total mentions your brand receives:
+
+```typescript
+// From: apps/api/src/services/competitor.service.ts:160-190
+const totalMentions = comparison.reduce((sum, c) => sum + c.mentions, 0);
+
+// Calculate share of voice percentage
+const shareOfVoice = totalMentions > 0 
+  ? ((brandMentions.length / (totalMentions + brandMentions.length)) * 100).toFixed(2) 
+  : '0';
+
+// Calculate visibility gap (your SOV - competitor SOV)
+const visibilityGap = (Number(brandSOV) - Number(competitorSOV)).toFixed(2);
+```
+
+<Accordion title="Understanding Share of Voice Metrics">
+  **Share of Voice (SOV)** measures the percentage of total AI mentions across all tracked brands:
+  
+  - **High SOV (40%+)**: Strong market presence in AI search
+  - **Medium SOV (20-40%)**: Competitive visibility
+  - **Low SOV (under 20%)**: Opportunity to improve
+  
+  **Visibility Gap** shows the difference between your SOV and each competitor's:
+  - **Positive Gap**: You're ahead of this competitor
+  - **Negative Gap**: Competitor has higher visibility
+  - **Gap Size**: Indicates how much you're leading/trailing
+</Accordion>
+
+## Competitor Mention Detection
+
+OpenSight extracts and analyzes competitor mentions from AI responses:
+
+```typescript
+// From: packages/analyzer/src/mention-extractor.ts:89-122
+export function extractCompetitorMentions(
+  text: string,
+  competitors: Array<{ name: string; url: string }>
+): CompetitorMention[] {
+  const mentions: CompetitorMention[] = [];
+  const sentences = text.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+  
+  for (const competitor of competitors) {
+    const mentionData = extractMentions(text, competitor.name, competitor.url);
+    
+    if (mentionData.mentioned && mentionData.position !== null) {
+      // Find sentence containing the mention
+      let sentenceIndex = mentionData.position - 1;
+      const sentenceWithMention = sentences[sentenceIndex];
+      
+      // Analyze sentiment of the specific sentence
+      const sentimentResult = analyzeSentiment(sentenceWithMention || '');
+      
+      mentions.push({
+        name: competitor.name,
+        position: mentionData.position,
+        sentiment: sentimentResult.label
+      });
+    }
+  }
+  
+  return mentions;
+}
+```
+
+### Sentiment Analysis
+
+Each competitor mention includes sentiment analysis:
+
+<Tabs>
+  <Tab title="Positive Sentiment">
+    Sentiment score > 0.05 indicates favorable mention
+    
+    Example: "Competitor A is a leading provider with excellent customer service"
+  </Tab>
+  
+  <Tab title="Neutral Sentiment">
+    Sentiment score between -0.05 and 0.05
+    
+    Example: "Competitor A offers similar features"
+  </Tab>
+  
+  <Tab title="Negative Sentiment">
+    Sentiment score < -0.05 indicates unfavorable mention
+    
+    Example: "Competitor A struggles with performance issues"
+  </Tab>
+</Tabs>
+
+## Leaderboard View
+
+The leaderboard ranks all brands (yours + competitors) by total mentions:
+
+```typescript
+// From: apps/api/src/services/competitor.service.ts:192-200
+const leaderboardItems = [
+  brandData,
+  ...comparisonWithSOV,
+].sort((a, b) => b.mentions - a.mentions);
+
+const leaderboard = leaderboardItems.map((item, index) => ({
+  ...item,
+  rank: index + 1,
+}));
+```
+
+### Leaderboard Metrics
+
+Each entry includes:
+- **Rank**: Position in the leaderboard (1 = most mentions)
+- **Name**: Brand or competitor name
+- **Mentions**: Total mention count across all AI engines
+- **Share of Voice**: Percentage of total mentions
+- **Visibility Gap**: Difference from your brand's SOV
+
+## Managing Competitors
+
+### List Competitors
+
+```http
+GET /api/brands/:brandId/competitors
+```
+
+Returns all competitors for a brand, ordered by creation date:
+
+```typescript
+// From: apps/api/src/services/competitor.service.ts:11-35
+const competitorList = await db
+  .select()
+  .from(competitors)
+  .where(eq(competitors.brandId, brandId))
+  .orderBy(desc(competitors.createdAt));
+```
+
+### Remove Competitor
+
+```http
+DELETE /api/brands/:brandId/competitors/:competitorId
+```
+
+<Warning>
+Removing a competitor will delete all historical comparison data. This action cannot be undone.
+</Warning>
+
+```typescript
+// From: apps/api/src/controllers/competitor.controller.ts:69-83
+export async function removeCompetitor(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const { brandId, competitorId } = req.params;
+  await competitorService.removeCompetitor(brandId, competitorId, req.user!.id);
+  res.json({ success: true });
+}
+```
+
+## Duplicate Detection
+
+The system prevents adding duplicate competitors:
+
+```typescript
+// From: apps/api/src/services/competitor.service.ts:50-64
+const existing = await db
+  .select()
+  .from(competitors)
+  .where(
+    and(
+      eq(competitors.brandId, brandId),
+      eq(competitors.websiteUrl, input.websiteUrl)
+    )
+  )
+  .limit(1);
+
+if (existing.length) {
+  throw new Error('This competitor URL already exists for this brand');
+}
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Market Positioning">
+    **Track your position relative to competitors:**
+    - Monitor rank changes over time
+    - Identify when competitors gain/lose visibility
+    - Adjust strategy based on competitive landscape
+  </Accordion>
+  
+  <Accordion title="Content Strategy">
+    **Inform content decisions:**
+    - Find topics where competitors dominate
+    - Identify gaps where you can improve
+    - Create content that outperforms competitor mentions
+  </Accordion>
+  
+  <Accordion title="Competitive Intelligence">
+    **Understand competitor strengths:**
+    - See which AI engines favor competitors
+    - Analyze sentiment of competitor mentions
+    - Track new competitors entering your space
+  </Accordion>
+  
+  <Accordion title="Share of Voice Growth">
+    **Grow your AI search presence:**
+    - Set SOV targets vs competitors
+    - Track progress toward visibility goals
+    - Measure ROI of content optimization efforts
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+### Choose the Right Competitors
+
+1. **Direct Competitors**: Companies offering similar products/services
+2. **Market Leaders**: Industry giants users might compare you to
+3. **Rising Challengers**: Emerging competitors gaining traction
+
+### Monitor Regularly
+
+- Check comparison data weekly
+- Set up alerts for new competitor mentions (see [Alerts & Notifications](/features/alerts-notifications))
+- Review sentiment trends monthly
+
+### Act on Insights
+
+<Steps>
+  <Step title="Identify Gaps">
+    Find queries where competitors outrank you
+  </Step>
+  
+  <Step title="Create Better Content">
+    Develop content that addresses those queries more comprehensively
+  </Step>
+  
+  <Step title="Track Improvement">
+    Monitor SOV changes after publishing new content
+  </Step>
+</Steps>
+
+## API Reference
+
+### Add Competitor
+```http
+POST /api/brands/:brandId/competitors
+Content-Type: application/json
+
+{
+  "name": "Competitor Name",
+  "website_url": "https://competitor.com"
+}
+```
+
+### Get Competitor Comparison
+```http
+GET /api/brands/:brandId/competitors/comparison
+```
+
+Returns:
+- Your brand's metrics
+- All competitors with share of voice
+- Leaderboard ranking
+
+### List Competitors
+```http
+GET /api/brands/:brandId/competitors
+```
+
+### Remove Competitor
+```http
+DELETE /api/brands/:brandId/competitors/:competitorId
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Brand Monitoring" icon="chart-line" href="/features/brand-monitoring">
+    Track your brand's visibility metrics
+  </Card>
+  <Card title="Alerts" icon="bell" href="/features/alerts-notifications">
+    Get notified when competitors gain visibility
+  </Card>
+  <Card title="AI Engines" icon="brain" href="/features/ai-engines">
+    Learn which engines track competitors
+  </Card>
+  <Card title="Content Scoring" icon="star" href="/features/content-scoring">
+    Optimize content to outrank competitors
+  </Card>
+</CardGroup>

@@ -1,0 +1,606 @@
+---
+title: 'Prompts'
+description: 'Manage test prompts and track your brand visibility across AI search results'
+---
+
+## List Prompts
+
+<api method="GET" path="/api/brands/:brandId/prompts" auth="required">
+  List all prompts for a brand with pagination and optional tag filtering. Includes latest results for each prompt.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="page" type="string">
+  Page number (default: 1)
+</ParamField>
+
+<ParamField query="limit" type="string">
+  Results per page (default: 20, max: 100)
+</ParamField>
+
+<ParamField query="tags" type="string">
+  Comma-separated list of tags to filter by
+</ParamField>
+
+### Response
+
+<ResponseField name="prompts" type="Prompt[]">
+  Array of prompt objects
+  
+  <Expandable title="Prompt properties">
+    <ResponseField name="id" type="string" required>
+      Unique prompt identifier
+    </ResponseField>
+    
+    <ResponseField name="brand_id" type="string" required>
+      Parent brand ID
+    </ResponseField>
+    
+    <ResponseField name="text" type="string" required>
+      Prompt text (1-1000 characters)
+    </ResponseField>
+    
+    <ResponseField name="tags" type="string[]" required>
+      Array of tags (max 10 tags, each max 50 characters)
+    </ResponseField>
+    
+    <ResponseField name="is_active" type="boolean" required>
+      Whether prompt is active
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp
+    </ResponseField>
+    
+    <ResponseField name="updated_at" type="string" required>
+      ISO 8601 timestamp
+    </ResponseField>
+    
+    <ResponseField name="latest_results" type="PromptResultSummary[]">
+      Latest results per engine
+      
+      <Expandable title="PromptResultSummary properties">
+        <ResponseField name="engine" type="string">
+          Engine name: chatgpt, perplexity, or google_aio
+        </ResponseField>
+        
+        <ResponseField name="score" type="number">
+          Visibility score (0-100)
+        </ResponseField>
+        
+        <ResponseField name="sentiment" type="string">
+          Sentiment: positive, neutral, or negative
+        </ResponseField>
+        
+        <ResponseField name="mentioned" type="boolean">
+          Whether brand was mentioned
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Total number of prompts
+</ResponseField>
+
+<ResponseField name="page" type="number">
+  Current page
+</ResponseField>
+
+<ResponseField name="limit" type="number">
+  Results per page
+</ResponseField>
+
+<ResponseField name="totalPages" type="number">
+  Total number of pages
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/brands/brand_123/prompts?page=1&limit=20&tags=pricing,features" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "prompts": [
+    {
+      "id": "prompt_123",
+      "brand_id": "brand_123",
+      "text": "Best project management tools for remote teams",
+      "tags": ["pricing", "features"],
+      "is_active": true,
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-15T10:00:00Z",
+      "latest_results": [
+        {
+          "engine": "chatgpt",
+          "score": 85,
+          "sentiment": "positive",
+          "mentioned": true
+        },
+        {
+          "engine": "perplexity",
+          "score": 72,
+          "sentiment": "neutral",
+          "mentioned": true
+        }
+      ]
+    }
+  ],
+  "total": 45,
+  "page": 1,
+  "limit": 20,
+  "totalPages": 3
+}
+```
+
+### Errors
+
+- **404 Not Found** - Brand not found or user doesn't own it
+
+---
+
+## Create Prompt(s)
+
+<api method="POST" path="/api/brands/:brandId/prompts" auth="required">
+  Create a single prompt or bulk create multiple prompts. Plan limits apply based on your subscription tier.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+### Request Body (Single Prompt)
+
+<ParamField body="text" type="string" required>
+  Prompt text (1-1000 characters)
+</ParamField>
+
+<ParamField body="tags" type="string[]">
+  Array of tags (max 10 tags, each max 50 characters)
+</ParamField>
+
+### Request Body (Bulk Prompts)
+
+<ParamField body="prompts" type="object[]" required>
+  Array of prompt objects (min 1, max 50)
+  
+  <Expandable title="Prompt object properties">
+    <ParamField body="text" type="string" required>
+      Prompt text (1-1000 characters)
+    </ParamField>
+    
+    <ParamField body="tags" type="string[]">
+      Array of tags
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response (Single)
+
+<ResponseField name="prompt" type="Prompt">
+  The created prompt object
+</ResponseField>
+
+### Response (Bulk)
+
+<ResponseField name="created" type="Prompt[]">
+  Array of created prompts
+</ResponseField>
+
+<ResponseField name="skipped" type="object[]">
+  Array of skipped prompts (duplicates)
+  
+  <Expandable title="Skipped object properties">
+    <ResponseField name="text" type="string">
+      Prompt text that was skipped
+    </ResponseField>
+    
+    <ResponseField name="reason" type="string">
+      Reason for skipping (e.g., "already exists")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request (Single)
+
+```bash
+curl -X POST "https://api.opensight.ai/api/brands/brand_123/prompts" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Best project management tools for remote teams",
+    "tags": ["pricing", "features"]
+  }'
+```
+
+### Example Request (Bulk)
+
+```bash
+curl -X POST "https://api.opensight.ai/api/brands/brand_123/prompts" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompts": [
+      {
+        "text": "Best CRM for small businesses",
+        "tags": ["crm", "small-business"]
+      },
+      {
+        "text": "Top marketing automation tools",
+        "tags": ["marketing", "automation"]
+      }
+    ]
+  }'
+```
+
+### Example Response (Bulk)
+
+```json
+{
+  "created": [
+    {
+      "id": "prompt_123",
+      "brand_id": "brand_123",
+      "text": "Best CRM for small businesses",
+      "tags": ["crm", "small-business"],
+      "is_active": true,
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-15T10:00:00Z"
+    }
+  ],
+  "skipped": [
+    {
+      "text": "Top marketing automation tools",
+      "reason": "Prompt already exists"
+    }
+  ]
+}
+```
+
+### Errors
+
+- **403 Forbidden** - Prompt limit reached for your plan
+- **404 Not Found** - Brand not found or user doesn't own it
+- **409 Conflict** - Prompt with this text already exists
+- **400 Bad Request** - Invalid input data
+
+### Plan Limits
+
+- **Free**: 25 prompts per brand
+- **Starter**: 100 prompts per brand
+- **Growth**: 250 prompts per brand
+
+---
+
+## Suggest Prompts
+
+<api method="POST" path="/api/brands/:brandId/prompts/suggest" auth="required">
+  Generate industry-specific prompt suggestions based on common search patterns.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+### Request Body
+
+<ParamField body="count" type="number">
+  Number of suggestions to generate (default: 20, min: 1, max: 50)
+</ParamField>
+
+<ParamField body="industry" type="string">
+  Industry to generate suggestions for (SaaS, E-commerce, Finance, Healthcare, Agency, Other)
+</ParamField>
+
+### Response
+
+<ResponseField name="suggestions" type="string[]">
+  Array of suggested prompt texts
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST "https://api.opensight.ai/api/brands/brand_123/prompts/suggest" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "count": 10,
+    "industry": "SaaS"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "suggestions": [
+    "Best project management software for remote teams",
+    "Top CRM tools for startups",
+    "Most affordable marketing automation platforms",
+    "Best team collaboration tools 2024",
+    "Compare project management software features"
+  ]
+}
+```
+
+---
+
+## Get Prompt
+
+<api method="GET" path="/api/brands/:brandId/prompts/:promptId" auth="required">
+  Get a single prompt with its latest results.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+<ParamField path="promptId" type="string" required>
+  Prompt ID
+</ParamField>
+
+### Response
+
+<ResponseField name="prompt" type="Prompt">
+  The prompt object (see List Prompts for structure)
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/brands/brand_123/prompts/prompt_123" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Errors
+
+- **404 Not Found** - Brand or prompt not found, or user doesn't own the brand
+
+---
+
+## Update Prompt
+
+<api method="PATCH" path="/api/brands/:brandId/prompts/:promptId" auth="required">
+  Update prompt text, tags, or active status. All fields are optional.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+<ParamField path="promptId" type="string" required>
+  Prompt ID
+</ParamField>
+
+### Request Body
+
+<ParamField body="text" type="string">
+  Prompt text (1-1000 characters)
+</ParamField>
+
+<ParamField body="tags" type="string[]">
+  Array of tags (max 10 tags, each max 50 characters)
+</ParamField>
+
+<ParamField body="is_active" type="boolean">
+  Whether prompt is active
+</ParamField>
+
+### Response
+
+<ResponseField name="prompt" type="Prompt">
+  The updated prompt object
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X PATCH "https://api.opensight.ai/api/brands/brand_123/prompts/prompt_123" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Best project management tools for distributed teams",
+    "tags": ["pricing", "features", "remote"],
+    "is_active": true
+  }'
+```
+
+### Errors
+
+- **404 Not Found** - Brand or prompt not found, or user doesn't own the brand
+- **409 Conflict** - Prompt with this text already exists
+
+---
+
+## Delete Prompt
+
+<api method="DELETE" path="/api/brands/:brandId/prompts/:promptId" auth="required">
+  Delete a prompt and all its associated results.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+<ParamField path="promptId" type="string" required>
+  Prompt ID
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Returns true if successful
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X DELETE "https://api.opensight.ai/api/brands/brand_123/prompts/prompt_123" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Errors
+
+- **404 Not Found** - Brand or prompt not found, or user doesn't own the brand
+
+---
+
+## Get Prompt Results
+
+<api method="GET" path="/api/brands/:brandId/prompts/:promptId/results" auth="required">
+  Get historical results for a specific prompt across all AI search engines.
+</api>
+
+### Path Parameters
+
+<ParamField path="brandId" type="string" required>
+  Brand ID
+</ParamField>
+
+<ParamField path="promptId" type="string" required>
+  Prompt ID
+</ParamField>
+
+### Response
+
+<ResponseField name="results" type="PromptResult[]">
+  Array of prompt result objects
+  
+  <Expandable title="PromptResult properties">
+    <ResponseField name="id" type="string" required>
+      Result ID
+    </ResponseField>
+    
+    <ResponseField name="prompt_id" type="string" required>
+      Parent prompt ID
+    </ResponseField>
+    
+    <ResponseField name="brand_id" type="string" required>
+      Parent brand ID
+    </ResponseField>
+    
+    <ResponseField name="engine" type="string" required>
+      Engine: chatgpt, perplexity, or google_aio
+    </ResponseField>
+    
+    <ResponseField name="run_date" type="string" required>
+      Date the prompt was run (ISO 8601)
+    </ResponseField>
+    
+    <ResponseField name="response_text" type="string" required>
+      Full response text from the AI engine
+    </ResponseField>
+    
+    <ResponseField name="brand_mentioned" type="boolean" required>
+      Whether the brand was mentioned
+    </ResponseField>
+    
+    <ResponseField name="mention_position" type="number | null" required>
+      Position of brand mention (null if not mentioned)
+    </ResponseField>
+    
+    <ResponseField name="sentiment_score" type="number" required>
+      Sentiment score (-1 to 1)
+    </ResponseField>
+    
+    <ResponseField name="sentiment_label" type="string" required>
+      Sentiment: positive, neutral, or negative
+    </ResponseField>
+    
+    <ResponseField name="citation_urls" type="string[]" required>
+      Array of citation URLs
+    </ResponseField>
+    
+    <ResponseField name="competitor_mentions" type="CompetitorMention[]" required>
+      Array of competitor mentions
+      
+      <Expandable title="CompetitorMention properties">
+        <ResponseField name="name" type="string">
+          Competitor name
+        </ResponseField>
+        
+        <ResponseField name="position" type="number">
+          Position in response
+        </ResponseField>
+        
+        <ResponseField name="sentiment" type="string">
+          Sentiment: positive, neutral, or negative
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="visibility_score" type="number" required>
+      Overall visibility score (0-100)
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.opensight.ai/api/brands/brand_123/prompts/prompt_123/results" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "results": [
+    {
+      "id": "result_123",
+      "prompt_id": "prompt_123",
+      "brand_id": "brand_123",
+      "engine": "chatgpt",
+      "run_date": "2024-01-15",
+      "response_text": "For project management tools, Acme Inc offers excellent features...",
+      "brand_mentioned": true,
+      "mention_position": 1,
+      "sentiment_score": 0.8,
+      "sentiment_label": "positive",
+      "citation_urls": ["https://acme.com/features"],
+      "competitor_mentions": [
+        {
+          "name": "Competitor Inc",
+          "position": 3,
+          "sentiment": "neutral"
+        }
+      ],
+      "visibility_score": 85,
+      "created_at": "2024-01-15T08:00:00Z"
+    }
+  ]
+}
+```
+
+### Errors
+
+- **404 Not Found** - Brand or prompt not found, or user doesn't own the brand

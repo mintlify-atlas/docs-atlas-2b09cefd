@@ -1,0 +1,548 @@
+---
+title: "Self-Hosting Installation"
+description: "Deploy OpenSight on your own infrastructure with Docker"
+---
+
+## Overview
+
+OpenSight can be self-hosted on your own infrastructure, giving you complete control over your brand monitoring data. This guide covers deployment using Docker Compose for a production-ready setup.
+
+<Info>
+  Self-hosting requires basic familiarity with Docker, environment variables, and server administration.
+</Info>
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Docker** 20.10 or higher
+- **Docker Compose** 2.0 or higher
+- **Git** for cloning the repository
+- **Node.js 20+** (for local development only)
+- **2GB+ RAM** recommended for production
+- **10GB+ disk space** for database and logs
+
+<Tip>
+  For production deployments, we recommend at least 4GB RAM and 20GB disk space.
+</Tip>
+
+## Quick Start with Docker
+
+Get OpenSight running in under 5 minutes with Docker Compose.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/shuvamk/opensight.git
+    cd opensight
+    ```
+  </Step>
+  
+  <Step title="Configure environment variables">
+    Copy the example environment file and update with your settings:
+    
+    ```bash
+    cp .env.example .env
+    ```
+    
+    Edit `.env` with your preferred text editor. See [Environment Variables](#environment-variables) for details.
+  </Step>
+  
+  <Step title="Start the full stack">
+    ```bash
+    docker compose -f docker/docker-compose.yml up -d
+    ```
+    
+    This command starts:
+    - **Web UI** on port 3000
+    - **API server** on port 4000
+    - **PostgreSQL** database on port 5432
+    - **Redis** cache on port 6379
+  </Step>
+  
+  <Step title="Access OpenSight">
+    Open your browser and navigate to:
+    - Web UI: `http://localhost:3000`
+    - API: `http://localhost:4000`
+    - API Documentation: `http://localhost:4000/api/docs`
+    
+    <Note>
+      Initial startup may take 1-2 minutes while the database initializes.
+    </Note>
+  </Step>
+</Steps>
+
+## Docker Compose Configuration
+
+OpenSight uses Docker Compose to orchestrate multiple services. Here's the complete configuration:
+
+```yaml docker/docker-compose.yml
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "3000:3000"
+    env_file: ../.env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "4000:4000"
+    env_file: ../.env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: opensight
+      POSTGRES_PASSWORD: opensight
+      POSTGRES_DB: opensight
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opensight"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:
+```
+
+## Environment Variables
+
+Configure OpenSight by setting these environment variables in your `.env` file.
+
+### Database Configuration
+
+```bash
+# PostgreSQL connection string
+DATABASE_URL=postgresql://opensight:opensight@postgres:5432/opensight
+```
+
+<Warning>
+  Change the default password in production deployments!
+</Warning>
+
+### Redis Configuration
+
+```bash
+# Redis connection for caching
+UPSTASH_REDIS_REST_URL=https://your-upstash-url.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-upstash-token
+
+# Or use local Redis (for Docker deployments)
+# REDIS_URL=redis://redis:6379
+```
+
+### Authentication
+
+```bash
+# JWT secrets for authentication
+JWT_SECRET=generate-a-64-char-random-string
+JWT_REFRESH_SECRET=generate-another-64-char-random-string
+
+# OAuth providers (optional)
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+```
+
+<Tip>
+  Generate secure random strings for JWT secrets:
+  ```bash
+  openssl rand -hex 32
+  ```
+</Tip>
+
+### AI Engine APIs
+
+These API keys enable OpenSight to query AI engines:
+
+```bash
+# Required for AI monitoring
+OPENAI_API_KEY=sk-...
+PERPLEXITY_API_KEY=pplx-...
+SERPER_API_KEY=...
+```
+
+<Info>
+  You need at least one AI engine API key for OpenSight to function. Get API keys from:
+  - [OpenAI Platform](https://platform.openai.com/api-keys)
+  - [Perplexity AI](https://www.perplexity.ai/settings/api)
+  - [Serper.dev](https://serper.dev/api-key) (for Google AI)
+</Info>
+
+### Email Configuration
+
+```bash
+# Resend for transactional emails
+RESEND_API_KEY=re_...
+EMAIL_FROM=notifications@opensight.dev
+```
+
+### Payment Processing (Optional)
+
+```bash
+# Stripe for subscription billing
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_STARTER_PRICE_ID=price_...
+STRIPE_GROWTH_PRICE_ID=price_...
+```
+
+### File Upload (Optional)
+
+```bash
+# UploadThing for file uploads
+UPLOADTHING_SECRET=sk_live_...
+UPLOADTHING_APP_ID=...
+```
+
+### Application URLs
+
+```bash
+# Frontend and API URLs
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:4000
+FRONTEND_URL=http://localhost:3000
+API_PORT=4000
+
+# Environment
+NODE_ENV=production
+```
+
+### Feature Flags
+
+```bash
+# Enable/disable features
+ENABLE_CONTENT_SCORING=true
+ENABLE_WEBHOOKS=true
+```
+
+### Error Tracking (Optional)
+
+```bash
+# Sentry for error monitoring
+SENTRY_DSN=https://...@sentry.io/...
+NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
+```
+
+## Local Development Setup
+
+For local development without Docker, follow these steps.
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+    
+    OpenSight uses pnpm workspaces. If you prefer pnpm:
+    ```bash
+    pnpm install
+    ```
+  </Step>
+  
+  <Step title="Start development services">
+    Start PostgreSQL and Redis in Docker:
+    
+    ```bash
+    docker compose -f docker/docker-compose.dev.yml up -d
+    ```
+    
+    This starts only the database and cache, not the application.
+  </Step>
+  
+  <Step title="Initialize the database">
+    ```bash
+    npm run db:generate  # Generate Drizzle schema
+    npm run db:migrate   # Run migrations
+    npm run db:seed      # Seed with sample data (optional)
+    ```
+    
+    Or run all at once:
+    ```bash
+    npm run db:setup
+    ```
+  </Step>
+  
+  <Step title="Start development servers">
+    ```bash
+    npm run dev
+    ```
+    
+    This starts:
+    - Web UI at `http://localhost:3000`
+    - API server at `http://localhost:4000`
+    
+    <Tip>
+      To start services individually:
+      ```bash
+      npm run dev:web      # Web UI only
+      npm run dev:api      # API server only
+      ```
+    </Tip>
+  </Step>
+</Steps>
+
+## Database Management
+
+OpenSight uses Drizzle ORM for database management.
+
+### Generate Schema
+
+```bash
+npm run db:generate
+```
+
+Generates TypeScript types from your database schema.
+
+### Run Migrations
+
+```bash
+npm run db:migrate
+```
+
+Applies pending migrations to your database.
+
+### Seed Database
+
+```bash
+npm run db:seed
+```
+
+Populates the database with sample data for development.
+
+## Production Deployment
+
+### Build for Production
+
+```bash
+# Build all services
+npm run build
+
+# Or build individually
+npm run build:web
+npm run build:api
+```
+
+### Start Production Services
+
+```bash
+# Using Docker Compose (recommended)
+docker compose -f docker/docker-compose.yml up -d
+
+# Or using npm scripts
+npm run start:web
+npm run start:api
+```
+
+### Health Checks
+
+Verify services are running:
+
+```bash
+# Check API health
+curl http://localhost:4000/health
+
+# Check PostgreSQL
+docker compose -f docker/docker-compose.yml exec postgres pg_isready -U opensight
+
+# Check Redis
+docker compose -f docker/docker-compose.yml exec redis redis-cli ping
+```
+
+### View Logs
+
+```bash
+# All services
+docker compose -f docker/docker-compose.yml logs -f
+
+# Specific service
+docker compose -f docker/docker-compose.yml logs -f api
+docker compose -f docker/docker-compose.yml logs -f web
+```
+
+## Monitoring & Maintenance
+
+### Database Backups
+
+Create automated backups of your PostgreSQL database:
+
+```bash
+# Manual backup
+docker compose -f docker/docker-compose.yml exec postgres pg_dump -U opensight opensight > backup.sql
+
+# Restore from backup
+cat backup.sql | docker compose -f docker/docker-compose.yml exec -T postgres psql -U opensight opensight
+```
+
+<Warning>
+  Set up automated backups for production deployments. Consider using managed database services for critical data.
+</Warning>
+
+### Redis Cache
+
+Clear the Redis cache if needed:
+
+```bash
+docker compose -f docker/docker-compose.yml exec redis redis-cli FLUSHALL
+```
+
+### Update OpenSight
+
+To update to the latest version:
+
+```bash
+git pull origin main
+npm install
+npm run build
+docker compose -f docker/docker-compose.yml up -d --build
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Services fail to start">
+    Check Docker logs for errors:
+    ```bash
+    docker compose -f docker/docker-compose.yml logs
+    ```
+    
+    Common issues:
+    - Ports already in use (3000, 4000, 5432, 6379)
+    - Insufficient disk space
+    - Missing environment variables
+  </Accordion>
+  
+  <Accordion title="Database connection errors">
+    Verify PostgreSQL is running and accessible:
+    ```bash
+    docker compose -f docker/docker-compose.yml ps postgres
+    ```
+    
+    Check the DATABASE_URL in your `.env` file matches the Docker service name.
+  </Accordion>
+  
+  <Accordion title="API requests failing">
+    Common causes:
+    - Missing AI engine API keys
+    - Incorrect NEXT_PUBLIC_API_URL in frontend
+    - CORS configuration issues
+    
+    Check API logs:
+    ```bash
+    docker compose -f docker/docker-compose.yml logs -f api
+    ```
+  </Accordion>
+  
+  <Accordion title="Out of memory errors">
+    OpenSight requires at least 2GB RAM. If running on a constrained system:
+    - Increase Docker memory limits
+    - Reduce concurrent analysis jobs
+    - Use external managed services for PostgreSQL/Redis
+  </Accordion>
+</AccordionGroup>
+
+## Security Considerations
+
+<Warning>
+  Follow these security best practices for production deployments:
+</Warning>
+
+- **Change default passwords** for PostgreSQL
+- **Use strong JWT secrets** (64+ characters)
+- **Enable HTTPS** with a reverse proxy (nginx, Caddy)
+- **Restrict database access** to application containers only
+- **Keep dependencies updated** with `npm audit`
+- **Set up firewall rules** to limit exposed ports
+- **Enable Redis authentication** for production
+- **Rotate API keys regularly**
+- **Use environment-specific .env files** (never commit secrets)
+
+## Scaling Considerations
+
+For high-traffic deployments:
+
+- Use managed PostgreSQL (AWS RDS, Railway, Supabase)
+- Use managed Redis (Upstash, Redis Cloud)
+- Deploy multiple API instances behind a load balancer
+- Enable CDN for static assets
+- Consider horizontal scaling with Kubernetes
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Environment Variables"
+    icon="gear"
+    href="/deployment/environment-variables"
+  >
+    Complete reference for all configuration options.
+  </Card>
+  <Card
+    title="Docker Guide"
+    icon="docker"
+    href="/deployment/docker"
+  >
+    Advanced Docker deployment patterns.
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api-reference/overview"
+  >
+    Integrate OpenSight into your workflows.
+  </Card>
+  <Card
+    title="Platform Features"
+    icon="sparkles"
+    href="/platform/plans-pricing"
+  >
+    Explore plan tiers and features.
+  </Card>
+</CardGroup>
+
+## Need Help?
+
+If you encounter issues during installation:
+
+- Check [GitHub Issues](https://github.com/shuvamk/opensight/issues)
+- Review [Docker documentation](https://docs.docker.com)
+- Join our community discussions

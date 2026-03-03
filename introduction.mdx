@@ -1,0 +1,189 @@
+---
+title: "Introduction to OpenSight"
+description: "Track your brand's visibility across AI search engines and stay ahead of your competitors"
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="OpenSight Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="OpenSight Hero Dark"
+/>
+
+## What is OpenSight?
+
+OpenSight is a comprehensive AI brand monitoring platform that helps you track how your brand appears across AI-powered search engines like ChatGPT, Perplexity, and Google AI Overviews. In a world where AI is becoming the new front door to information discovery, understanding your AI visibility is critical.
+
+<CardGroup cols={2}>
+  <Card
+    title="Real-Time AI Monitoring"
+    icon="radar"
+    href="/features/brand-monitoring"
+  >
+    Track your brand mentions across ChatGPT, Perplexity, and Google AI in real-time.
+  </Card>
+  <Card
+    title="Competitor Intelligence"
+    icon="users"
+    href="/features/competitor-tracking"
+  >
+    Monitor up to 5 competitors and understand your competitive positioning in AI responses.
+  </Card>
+  <Card
+    title="Content Scoring"
+    icon="chart-line"
+    href="/features/content-scoring"
+  >
+    Analyze your content visibility and get actionable recommendations to improve AI rankings.
+  </Card>
+  <Card
+    title="Smart Alerts"
+    icon="bell"
+    href="/features/alerts-notifications"
+  >
+    Get notified about visibility drops, sentiment shifts, and new competitor mentions.
+  </Card>
+</CardGroup>
+
+## Why OpenSight?
+
+Traditional SEO metrics don't tell the full story anymore. As AI-powered search becomes the primary way people discover information, you need visibility into:
+
+- **How often AI engines mention your brand** when users ask relevant questions
+- **What recommendations AI makes** about your products or services
+- **Where competitors outrank you** in AI responses
+- **Sentiment analysis** of how your brand is portrayed
+- **Trending topics** in your industry that AI engines prioritize
+
+<Note>
+  OpenSight is open-source and can be self-hosted, giving you complete control over your brand monitoring data.
+</Note>
+
+## Key Features
+
+### Multi-Engine Coverage
+
+Monitor your brand across three major AI platforms:
+- **ChatGPT** (OpenAI's GPT-4 and beyond)
+- **Perplexity AI** (Real-time search with citations)
+- **Google AI Overviews** (Google's AI-powered summaries)
+
+### Automated Prompt Analysis
+
+Define custom prompts relevant to your industry and automatically track how AI engines respond. OpenSight checks these prompts on a schedule and alerts you to changes.
+
+### Competitor Benchmarking
+
+Add up to 5 competitors per brand and see side-by-side comparisons of:
+- Mention frequency
+- Sentiment scores
+- Position in AI responses
+- Feature comparisons
+
+### REST API Access
+
+Integrate AI visibility data into your existing workflows with our comprehensive REST API:
+
+```bash
+curl -X GET "https://api.opensight.dev/brands" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+<Info>
+  API access is available on all plans, including the free tier.
+</Info>
+
+## Tech Stack
+
+OpenSight is built with modern, production-ready technologies:
+
+- **Frontend**: Next.js 14 with React 18 and TypeScript
+- **Backend**: Express.js with TypeScript
+- **Database**: PostgreSQL 16 for reliable data storage
+- **Cache**: Redis 7 for high-performance operations
+- **Build System**: Turborepo for efficient monorepo management
+- **Deployment**: Docker containerization for easy self-hosting
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Create your account and set up your first brand in under 5 minutes.
+  </Card>
+  <Card
+    title="Self-Hosting Guide"
+    icon="server"
+    href="/installation"
+  >
+    Deploy OpenSight on your own infrastructure with Docker.
+  </Card>
+  <Card
+    title="API Documentation"
+    icon="code"
+    href="/api-reference/overview"
+  >
+    Integrate OpenSight into your workflows with our REST API.
+  </Card>
+  <Card
+    title="View on GitHub"
+    icon="github"
+    href="https://github.com/shuvamk/opensight"
+  >
+    Explore the source code and contribute to the project.
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+### SaaS Companies
+
+Track how your product is recommended by AI engines compared to competitors. Monitor sentiment around feature updates and identify gaps in AI visibility.
+
+### E-commerce Brands
+
+Understand how AI describes your products when customers ask for recommendations. Track competitive positioning and optimize product descriptions for AI discoverability.
+
+### Marketing Agencies
+
+Provide clients with comprehensive AI visibility reports. Monitor multiple brands and demonstrate the impact of content optimization efforts.
+
+### Enterprise Teams
+
+Self-host OpenSight for complete data control. Integrate with existing analytics tools via API and webhook notifications.
+
+## Open Source & Community
+
+OpenSight is MIT licensed and community-driven. We believe brand monitoring data should be accessible to everyone, not just enterprise companies.
+
+<Card
+  title="Contribute on GitHub"
+  icon="code-branch"
+  href="https://github.com/shuvamk/opensight"
+>
+  We welcome contributions! Check out our contributing guide to get started.
+</Card>
+
+## Next Steps
+
+<Steps>
+  <Step title="Sign up or self-host">
+    Create a free account at opensight.dev or follow our [installation guide](/installation) to self-host.
+  </Step>
+  <Step title="Add your first brand">
+    Follow the [quickstart guide](/quickstart) to set up brand monitoring in minutes.
+  </Step>
+  <Step title="Configure monitoring prompts">
+    Define the questions and topics relevant to your brand that you want to track.
+  </Step>
+  <Step title="Invite your team">
+    Collaborate with teammates and share insights across your organization.
+  </Step>
+</Steps>

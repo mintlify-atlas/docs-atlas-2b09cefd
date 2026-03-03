@@ -1,0 +1,538 @@
+---
+title: 'Docker Deployment'
+description: 'Deploy OpenSight using Docker and Docker Compose'
+---
+
+## Overview
+
+Docker Compose provides the easiest way to deploy OpenSight with all required services. This guide covers both production deployment and development setup.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install Docker">
+    Install Docker Engine 24.0 or later:
+    
+    ```bash
+    # Ubuntu/Debian
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    
+    # Verify installation
+    docker --version
+    ```
+  </Step>
+  
+  <Step title="Install Docker Compose">
+    Docker Compose is included with Docker Desktop. For Linux servers:
+    
+    ```bash
+    # Verify installation
+    docker compose version
+    ```
+    
+    Expected output: `Docker Compose version v2.20.0` or later
+  </Step>
+  
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/yourusername/opensight.git
+    cd opensight
+    ```
+  </Step>
+</Steps>
+
+## Production Deployment
+
+### Full Stack Configuration
+
+The production `docker-compose.yml` deploys all services:
+
+```yaml docker/docker-compose.yml
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "3000:3000"
+    env_file: ../.env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "4000:4000"
+    env_file: ../.env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: opensight
+      POSTGRES_PASSWORD: opensight
+      POSTGRES_DB: opensight
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opensight"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:
+```
+
+### Deploy Production Stack
+
+<Steps>
+  <Step title="Configure environment variables">
+    Create your `.env` file from the example:
+    
+    ```bash
+    cp .env.example .env
+    ```
+    
+    Edit the `.env` file with your production settings. At minimum, update:
+    
+    ```bash .env
+    # Database (use internal service name for Docker)
+    DATABASE_URL=postgresql://opensight:opensight@postgres:5432/opensight
+    
+    # Redis (use internal service name for Docker)
+    UPSTASH_REDIS_REST_URL=redis://redis:6379
+    
+    # Generate secure secrets
+    JWT_SECRET=your-secure-64-character-random-string-here
+    JWT_REFRESH_SECRET=your-secure-64-character-refresh-string-here
+    
+    # API Configuration
+    NEXT_PUBLIC_API_URL=http://localhost:4000
+    API_PORT=4000
+    
+    # Frontend Configuration
+    NEXT_PUBLIC_APP_URL=http://localhost:3000
+    FRONTEND_URL=http://localhost:3000
+    ```
+    
+    See [Environment Variables](/deployment/environment-variables) for complete reference.
+  </Step>
+  
+  <Step title="Build and start services">
+    ```bash
+    docker compose -f docker/docker-compose.yml up -d
+    ```
+    
+    Expected output:
+    ```
+    [+] Running 6/6
+     ✔ Network opensight_default      Created
+     ✔ Volume "opensight_pgdata"      Created
+     ✔ Volume "opensight_redisdata"   Created
+     ✔ Container opensight-postgres-1 Started
+     ✔ Container opensight-redis-1    Started
+     ✔ Container opensight-api-1      Started
+     ✔ Container opensight-web-1      Started
+    ```
+  </Step>
+  
+  <Step title="Run database migrations">
+    After the API container starts, run migrations:
+    
+    ```bash
+    docker compose -f docker/docker-compose.yml exec api npm run db:migrate
+    ```
+  </Step>
+  
+  <Step title="Verify deployment">
+    Check that all services are running:
+    
+    ```bash
+    docker compose -f docker/docker-compose.yml ps
+    ```
+    
+    All services should show `Up` status with healthy checks passing:
+    ```
+    NAME                    STATUS                    PORTS
+    opensight-web-1         Up 2 minutes              0.0.0.0:3000->3000/tcp
+    opensight-api-1         Up 2 minutes              0.0.0.0:4000->4000/tcp
+    opensight-postgres-1    Up 2 minutes (healthy)    0.0.0.0:5432->5432/tcp
+    opensight-redis-1       Up 2 minutes (healthy)    0.0.0.0:6379->6379/tcp
+    ```
+  </Step>
+  
+  <Step title="Access the application">
+    Open your browser and navigate to:
+    
+    - **Web UI:** http://localhost:3000
+    - **API Docs:** http://localhost:4000/api/docs
+  </Step>
+</Steps>
+
+## Development Setup
+
+### Development Configuration
+
+For local development, use `docker-compose.dev.yml` which runs only PostgreSQL and Redis:
+
+```yaml docker/docker-compose.dev.yml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: opensight
+      POSTGRES_PASSWORD: opensight
+      POSTGRES_DB: opensight
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opensight"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:
+```
+
+### Start Development Environment
+
+<Steps>
+  <Step title="Start database services">
+    ```bash
+    npm run docker:up
+    # Or manually:
+    docker compose -f docker/docker-compose.dev.yml up -d
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
+  
+  <Step title="Set up database">
+    ```bash
+    npm run db:setup
+    ```
+    
+    This runs migrations and seeds the database.
+  </Step>
+  
+  <Step title="Start development servers">
+    ```bash
+    npm run dev
+    ```
+    
+    This starts:
+    - Web application on http://localhost:3000
+    - API server on http://localhost:4000
+  </Step>
+</Steps>
+
+## Docker Commands Reference
+
+### Production Commands
+
+```bash
+# Start all services
+docker compose -f docker/docker-compose.yml up -d
+
+# Start with build (rebuild images)
+docker compose -f docker/docker-compose.yml up -d --build
+
+# View logs (all services)
+docker compose -f docker/docker-compose.yml logs -f
+
+# View logs (specific service)
+docker compose -f docker/docker-compose.yml logs -f api
+
+# Check service status
+docker compose -f docker/docker-compose.yml ps
+
+# Stop all services
+docker compose -f docker/docker-compose.yml down
+
+# Stop and remove volumes (⚠️ deletes data)
+docker compose -f docker/docker-compose.yml down -v
+
+# Restart a specific service
+docker compose -f docker/docker-compose.yml restart api
+
+# Execute command in running container
+docker compose -f docker/docker-compose.yml exec api npm run db:migrate
+```
+
+### Development Commands
+
+```bash
+# Start development stack (PostgreSQL + Redis)
+npm run docker:up
+# Or: docker compose -f docker/docker-compose.dev.yml up -d
+
+# Stop development stack
+npm run docker:down
+# Or: docker compose -f docker/docker-compose.dev.yml down
+
+# View logs
+docker compose -f docker/docker-compose.dev.yml logs -f
+
+# Check status
+docker compose -f docker/docker-compose.dev.yml ps
+```
+
+## Service Configuration
+
+### Port Mappings
+
+| Service | Container Port | Host Port | Description |
+|---------|---------------|-----------|-------------|
+| web | 3000 | 3000 | Next.js web application |
+| api | 4000 | 4000 | Express API server |
+| postgres | 5432 | 5432 | PostgreSQL database |
+| redis | 6379 | 6379 | Redis cache |
+
+<Note>
+  In production, you may want to avoid exposing PostgreSQL and Redis ports to the host. Remove the `ports` mapping for these services to keep them internal to the Docker network.
+</Note>
+
+### Volume Mounts
+
+| Volume | Mount Point | Purpose |
+|--------|-------------|----------|
+| pgdata | /var/lib/postgresql/data | PostgreSQL data persistence |
+| redisdata | /data | Redis data persistence |
+
+### Health Checks
+
+Each service includes health checks for monitoring:
+
+```yaml
+# PostgreSQL health check
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -U opensight"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+
+# Redis health check
+healthcheck:
+  test: ["CMD", "redis-cli", "ping"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+```
+
+## Troubleshooting
+
+### Services Won't Start
+
+<AccordionGroup>
+  <Accordion title="Check service logs">
+    ```bash
+    docker compose -f docker/docker-compose.yml logs api
+    ```
+  </Accordion>
+  
+  <Accordion title="Verify environment variables">
+    Ensure your `.env` file is properly configured:
+    ```bash
+    cat .env | grep -v '^#' | grep -v '^$'
+    ```
+  </Accordion>
+  
+  <Accordion title="Check port conflicts">
+    Ensure ports 3000, 4000, 5432, and 6379 are not in use:
+    ```bash
+    sudo lsof -i :3000
+    sudo lsof -i :4000
+    sudo lsof -i :5432
+    sudo lsof -i :6379
+    ```
+  </Accordion>
+  
+  <Accordion title="Clean up and restart">
+    Stop all services and remove containers:
+    ```bash
+    docker compose -f docker/docker-compose.yml down
+    docker compose -f docker/docker-compose.yml up -d --build
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Database Connection Issues
+
+<Warning>
+  When running services in Docker, use the service name (e.g., `postgres`) instead of `localhost` in `DATABASE_URL`:
+  
+  ```bash
+  # Correct for Docker
+  DATABASE_URL=postgresql://opensight:opensight@postgres:5432/opensight
+  
+  # Incorrect for Docker
+  DATABASE_URL=postgresql://opensight:opensight@localhost:5432/opensight
+  ```
+</Warning>
+
+### View Container Resource Usage
+
+```bash
+# Real-time stats
+docker stats
+
+# Disk usage
+docker system df
+
+# Volume inspection
+docker volume ls
+docker volume inspect opensight_pgdata
+```
+
+## Production Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use External Database" icon="database">
+    For production, consider using a managed PostgreSQL service (AWS RDS, Google Cloud SQL, etc.) instead of the containerized database.
+  </Card>
+  
+  <Card title="Secure Secrets" icon="lock">
+    Use Docker secrets or environment variable management services instead of plain `.env` files.
+  </Card>
+  
+  <Card title="Enable HTTPS" icon="shield">
+    Use a reverse proxy like Nginx or Traefik to handle SSL/TLS termination.
+  </Card>
+  
+  <Card title="Monitor Resources" icon="chart-line">
+    Set up monitoring with Prometheus, Grafana, or similar tools to track container health.
+  </Card>
+</CardGroup>
+
+### Remove Exposed Ports
+
+For production security, modify `docker-compose.yml` to remove port mappings for internal services:
+
+```yaml
+# Before (development)
+postgres:
+  ports:
+    - "5432:5432"
+
+# After (production)
+postgres:
+  # Remove ports mapping - only accessible via Docker network
+  expose:
+    - "5432"
+```
+
+### Set Resource Limits
+
+Add resource constraints to prevent services from consuming excessive resources:
+
+```yaml
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+```
+
+## Backup and Restore
+
+### Backup Database
+
+```bash
+# Create backup
+docker compose -f docker/docker-compose.yml exec postgres pg_dump -U opensight opensight > backup-$(date +%Y%m%d).sql
+
+# Backup with compression
+docker compose -f docker/docker-compose.yml exec postgres pg_dump -U opensight opensight | gzip > backup-$(date +%Y%m%d).sql.gz
+```
+
+### Restore Database
+
+```bash
+# Restore from backup
+docker compose -f docker/docker-compose.yml exec -T postgres psql -U opensight opensight < backup.sql
+
+# Restore from compressed backup
+gunzip < backup.sql.gz | docker compose -f docker/docker-compose.yml exec -T postgres psql -U opensight opensight
+```
+
+### Backup Volumes
+
+```bash
+# Backup PostgreSQL volume
+docker run --rm -v opensight_pgdata:/data -v $(pwd):/backup alpine tar czf /backup/pgdata-backup.tar.gz -C /data .
+
+# Backup Redis volume
+docker run --rm -v opensight_redisdata:/data -v $(pwd):/backup alpine tar czf /backup/redisdata-backup.tar.gz -C /data .
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Configure all environment variables for your deployment
+  </Card>
+  
+  <Card title="Self-Hosting Guide" icon="server" href="/deployment/self-hosting">
+    Learn about architecture and deployment options
+  </Card>
+</CardGroup>

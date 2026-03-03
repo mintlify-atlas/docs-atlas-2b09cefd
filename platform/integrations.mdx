@@ -1,0 +1,447 @@
+---
+title: 'Integrations'
+description: 'Available third-party integrations including OAuth, payment processing, email, and more'
+---
+
+## Overview
+
+OpenSight integrates with several third-party services to provide authentication, payments, notifications, and AI capabilities. All integrations are configured via environment variables.
+
+## Authentication
+
+OpenSight supports multiple authentication methods configured in `apps/api/src/config/passport.ts`.
+
+### GitHub OAuth
+
+Allow users to sign in with their GitHub account.
+
+**Configuration** (`.env.example:7-8`):
+
+```bash
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+```
+
+**OAuth Flow**:
+
+1. User clicks "Sign in with GitHub"
+2. Redirects to `GET /auth/github`
+3. GitHub callback to `GET /auth/github/callback`
+4. User created or linked in database
+
+**Implementation** (`apps/api/src/config/passport.ts:130-152`):
+
+```typescript
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: env.GITHUB_CLIENT_ID,
+      clientSecret: env.GITHUB_CLIENT_SECRET,
+      callbackURL: env.GITHUB_CALLBACK_URL || `${env.FRONTEND_URL}/auth/github/callback`,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      const user = await findOrCreateGithubUser(profile);
+      return done(null, user);
+    }
+  )
+);
+```
+
+<Note>
+  GitHub OAuth emails are automatically verified. Users authenticated via GitHub have `email_verified: true`.
+</Note>
+
+### Google OAuth
+
+Allow users to sign in with their Google account.
+
+**Configuration** (`.env.example:9-10`):
+
+```bash
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+```
+
+**OAuth Flow**:
+
+1. User clicks "Sign in with Google"
+2. Redirects to `GET /auth/google` (scopes: `profile`, `email`)
+3. Google callback to `GET /auth/google/callback`
+4. User created or linked in database
+
+**Token-based Flow**:
+
+For mobile/SPA apps, use the token endpoint:
+
+```bash
+POST /auth/google/token
+Content-Type: application/json
+
+{
+  "idToken": "google_id_token_from_client"
+}
+```
+
+**Implementation** (`apps/api/src/config/passport.ts:152-170`):
+
+```typescript
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      callbackURL: env.GOOGLE_CALLBACK_URL || `${env.FRONTEND_URL}/auth/google/callback`,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      const user = await findOrCreateGoogleUser(profile);
+      return done(null, user);
+    }
+  )
+);
+```
+
+<Info>
+  Google OAuth implementation uses the `google-auth-library` package for token verification in the `/auth/google/token` endpoint.
+</Info>
+
+### Local Authentication
+
+Traditional email/password authentication using Passport Local Strategy.
+
+**Configuration** (`.env.example:5-6`):
+
+```bash
+JWT_SECRET=generate-a-64-char-random-string
+JWT_REFRESH_SECRET=generate-another-64-char-random-string
+```
+
+**User Model** (`packages/shared/src/types/user.ts`):
+
+```typescript
+export interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  avatar_url: string | null;
+  email_verified: boolean;
+  github_id: string | null;  // Linked GitHub account
+  google_id: string | null;  // Linked Google account
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  plan_id: PlanId;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+<Warning>
+  JWT secrets must be at least 32 characters in production. Use a cryptographically secure random string generator.
+</Warning>
+
+## Payment Processing
+
+### Stripe
+
+Stripe handles all subscription billing and payment processing.
+
+**Configuration** (`.env.example:12-17`):
+
+```bash
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_STARTER_PRICE_ID=price_...
+STRIPE_GROWTH_PRICE_ID=price_...
+```
+
+**Stripe Client** (`apps/api/src/config/stripe.ts`):
+
+```typescript
+import Stripe from 'stripe';
+import { env } from './env.js';
+
+export const stripe = new Stripe(env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2023-10-16',
+});
+```
+
+**Webhook Handler** (`apps/api/src/routes/webhook.routes.ts`):
+
+```bash
+POST /api/webhooks/stripe
+```
+
+Handles Stripe events:
+- `customer.subscription.created`
+- `customer.subscription.updated`  
+- `customer.subscription.deleted`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
+
+<Note>
+  Stripe webhooks must be configured in your Stripe Dashboard to point to `https://your-domain.com/api/webhooks/stripe`
+</Note>
+
+**User Subscription Data**:
+
+Each user has Stripe fields:
+- `stripe_customer_id`: Stripe Customer ID
+- `stripe_subscription_id`: Active subscription ID
+- `plan_id`: Current plan (free, starter, growth)
+
+## Email Services
+
+### Resend
+
+Resend powers all transactional emails.
+
+**Configuration** (`.env.example:19-21`):
+
+```bash
+RESEND_API_KEY=re_...
+EMAIL_FROM=notifications@opensight.dev
+```
+
+**Email Functions** (`apps/api/src/config/email.ts`):
+
+```typescript
+import { Resend } from 'resend';
+import { env } from './env.js';
+
+export const resend = new Resend(env.RESEND_API_KEY || '');
+
+// Send verification email
+export async function sendVerificationEmail(
+  email: string,
+  verificationUrl: string
+): Promise<void>
+
+// Send password reset
+export async function sendPasswordResetEmail(
+  email: string,
+  resetUrl: string
+): Promise<void>
+
+// Send alert digest
+export async function sendAlertDigest(
+  email: string,
+  alerts: any[]
+): Promise<void>
+```
+
+**Email Types**:
+
+1. **Verification Email**: Sent on user registration
+2. **Password Reset**: Sent when user requests password reset
+3. **Alert Digest**: Weekly/daily notification summaries
+
+<Info>
+  Email alerts are sent based on user plan and notification preferences. See [Plans & Pricing](/platform/plans-pricing) for details.
+</Info>
+
+## Caching & Job Queue
+
+### Upstash Redis
+
+Upstash provides HTTP-based Redis for caching and rate limiting.
+
+**Configuration** (`.env.example:23-25`):
+
+```bash
+UPSTASH_REDIS_REST_URL=https://your-upstash-url.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-upstash-token
+```
+
+**Redis Client** (`apps/api/src/config/redis.ts`):
+
+```typescript
+import { Redis } from '@upstash/redis';
+import { env } from './env.js';
+
+export const redis = new Redis({
+  url: env.UPSTASH_REDIS_REST_URL,
+  token: env.UPSTASH_REDIS_REST_TOKEN,
+});
+```
+
+**Job Processing**:
+
+OpenSight includes a simple in-process job runner:
+
+```typescript
+export async function runJob<T>(
+  jobName: string,
+  data: T,
+  processor: (data: T) => Promise<any>,
+  options: JobOptions = {}
+): Promise<any>
+```
+
+<Note>
+  This replaces BullMQ for simple, single-server deployments. Redis is used via HTTP REST API instead of TCP connections.
+</Note>
+
+## AI Engine APIs
+
+OpenSight integrates with multiple AI engines for visibility tracking.
+
+### OpenAI
+
+**Configuration** (`.env.example:27-28`):
+
+```bash
+OPENAI_API_KEY=sk-...
+```
+
+Used for:
+- ChatGPT visibility tracking
+- Content analysis
+- Prompt evaluation
+
+### Perplexity
+
+**Configuration** (`.env.example:29`):
+
+```bash
+PERPLEXITY_API_KEY=pplx-...
+```
+
+Used for:
+- Perplexity AI visibility tracking
+- Answer analysis
+
+### Serper (Google Search)
+
+**Configuration** (`.env.example:30`):
+
+```bash
+SERPER_API_KEY=...
+```
+
+Used for:
+- Google AI Overviews tracking
+- SERP analysis
+- Competitor monitoring
+
+<CardGroup cols={3}>
+  <Card title="ChatGPT" icon="robot">
+    Available on all plans
+  </Card>
+  <Card title="Perplexity" icon="brain">
+    Starter and Growth plans
+  </Card>
+  <Card title="Google AIO" icon="google">
+    Starter and Growth plans
+  </Card>
+</CardGroup>
+
+## File Uploads
+
+### UploadThing
+
+**Configuration** (`.env.example:32-34`):
+
+```bash
+UPLOADTHING_SECRET=sk_live_...
+UPLOADTHING_APP_ID=...
+```
+
+Used for:
+- Brand logo uploads
+- User avatar uploads
+- Report attachments
+
+## Error Tracking
+
+### Sentry (Optional)
+
+**Configuration** (`.env.example:36-38`):
+
+```bash
+SENTRY_DSN=https://...@sentry.io/...
+NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
+```
+
+<Note>
+  Sentry is optional but recommended for production deployments. It provides error tracking and performance monitoring.
+</Note>
+
+## Webhooks
+
+Users on the Growth plan can configure custom webhooks for real-time notifications.
+
+**Webhook Configuration** (`apps/api/src/services/notification.service.ts`):
+
+```typescript
+interface NotificationSettings {
+  webhookUrl?: string;
+  // ...
+}
+```
+
+**Webhook Delivery** (`apps/api/src/jobs/alert-checker.ts`):
+
+```typescript
+async function sendWebhookNotification(
+  webhookUrl: string,
+  payload: WebhookPayload
+): Promise<void> {
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+```
+
+**Webhook Events**:
+- Visibility drops
+- New competitor mentions
+- Sentiment shifts
+- New brand mentions
+
+<Warning>
+  Webhooks are only available on the Growth plan. See [Plans & Pricing](/platform/plans-pricing) for upgrade options.
+</Warning>
+
+## Feature Flags
+
+**Configuration** (`.env.example:40-42`):
+
+```bash
+ENABLE_CONTENT_SCORING=true
+ENABLE_WEBHOOKS=true
+```
+
+Feature flags allow you to toggle features without code changes:
+
+- `ENABLE_CONTENT_SCORING`: Enable/disable content scoring API
+- `ENABLE_WEBHOOKS`: Enable/disable webhook notifications
+
+## Environment Variables Summary
+
+| Service | Required | Environment Variables |
+|---------|----------|----------------------|
+| **Database** | ✅ Yes | `DATABASE_URL` |
+| **Auth** | ✅ Yes | `JWT_SECRET`, `JWT_REFRESH_SECRET` |
+| **GitHub OAuth** | ❌ Optional | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
+| **Google OAuth** | ❌ Optional | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| **Stripe** | ❌ Optional | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_*_PRICE_ID` |
+| **Resend** | ❌ Optional | `RESEND_API_KEY` |
+| **Upstash Redis** | ✅ Yes | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
+| **OpenAI** | ❌ Optional | `OPENAI_API_KEY` |
+| **Perplexity** | ❌ Optional | `PERPLEXITY_API_KEY` |
+| **Serper** | ❌ Optional | `SERPER_API_KEY` |
+| **UploadThing** | ❌ Optional | `UPLOADTHING_SECRET`, `UPLOADTHING_APP_ID` |
+| **Sentry** | ❌ Optional | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` |
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Plans & Pricing" icon="dollar" href="/platform/plans-pricing">
+    View integration availability by subscription tier
+  </Card>
+  <Card title="Admin Panel" icon="user-shield" href="/platform/admin-panel">
+    Manage platform integrations from admin dashboard
+  </Card>
+</CardGroup>

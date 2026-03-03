@@ -1,0 +1,222 @@
+---
+title: API Overview
+description: Learn how to interact with the OpenSight REST API
+---
+
+## Introduction
+
+The OpenSight API is a RESTful API that allows you to programmatically access and manage your brand monitoring, competitor analysis, and content generation workflows. All API endpoints are accessed via `https://your-domain.com/api` and return JSON responses.
+
+## Base URL
+
+All API requests should be made to:
+
+```
+http://localhost:3000/api
+```
+
+For production deployments, replace `localhost:3000` with your deployed API domain.
+
+## API Structure
+
+The API is organized into the following resource groups:
+
+- **Authentication** (`/api/auth`) - User registration, login, OAuth flows
+- **Users** (`/api/users`) - User profile management
+- **Brands** (`/api/brands`) - Brand configuration and settings
+- **Prompts** (`/api/brands/:brandId/prompts`) - AI prompt templates
+- **Competitors** (`/api/brands/:brandId/competitors`) - Competitor tracking
+- **Content** (`/api/content`) - Content generation and management
+- **Notifications** (`/api/notifications`) - Alert preferences
+- **API Keys** (`/api/api-keys`) - API key management
+- **Webhooks** (`/api/webhooks`) - Webhook configuration
+
+## Request Format
+
+### Headers
+
+All API requests should include the following headers:
+
+```http
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+### Body
+
+Request bodies should be sent as JSON:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "secure-password"
+}
+```
+
+## Response Format
+
+All responses are returned in JSON format with appropriate HTTP status codes.
+
+### Success Response
+
+```json
+{
+  "user": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "email": "user@example.com",
+    "full_name": "John Doe",
+    "plan_id": "free",
+    "created_at": "2024-01-15T10:30:00Z"
+  },
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Error Response
+
+Error responses follow a consistent format:
+
+```json
+{
+  "error": "Invalid email or password"
+}
+```
+
+For validation errors (Zod schema validation):
+
+```json
+{
+  "error": "Validation error",
+  "issues": [
+    {
+      "code": "too_small",
+      "minimum": 8,
+      "type": "string",
+      "inclusive": true,
+      "message": "Password must be at least 8 characters",
+      "path": ["password"]
+    }
+  ]
+}
+```
+
+## HTTP Status Codes
+
+The API uses standard HTTP status codes:
+
+| Status Code | Description |
+|------------|-------------|
+| `200` | **OK** - Request succeeded |
+| `201` | **Created** - Resource created successfully |
+| `400` | **Bad Request** - Invalid request parameters or validation error |
+| `401` | **Unauthorized** - Missing or invalid authentication token |
+| `403` | **Forbidden** - Insufficient permissions or plan limit reached |
+| `404` | **Not Found** - Resource not found |
+| `409` | **Conflict** - Resource already exists (e.g., duplicate email) |
+| `500` | **Internal Server Error** - Server error |
+| `503` | **Service Unavailable** - Service not configured |
+
+## Common Error Scenarios
+
+<Note>
+  All error messages are returned in a consistent `{"error": "message"}` format for easy parsing and handling.
+</Note>
+
+### Authentication Errors
+
+```json
+// 401 Unauthorized - Missing token
+{
+  "error": "Unauthorized"
+}
+
+// 401 Unauthorized - Expired token
+{
+  "error": "Unauthorized"
+}
+
+// 401 Unauthorized - Invalid credentials
+{
+  "error": "Invalid email or password"
+}
+```
+
+### Resource Errors
+
+```json
+// 404 Not Found
+{
+  "error": "API key not found"
+}
+
+// 409 Conflict
+{
+  "error": "Email already in use"
+}
+
+// 403 Forbidden - Plan limit
+{
+  "error": "You have reached the maximum number of API keys (5) for your plan"
+}
+```
+
+### Validation Errors
+
+```json
+// 400 Bad Request - Missing required field
+{
+  "error": "Validation error",
+  "issues": [
+    {
+      "message": "API key name is required",
+      "path": ["name"]
+    }
+  ]
+}
+```
+
+## Rate Limiting
+
+API requests are subject to rate limiting based on your plan tier. Rate limit information is included in response headers:
+
+```http
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1640995200
+```
+
+## Health Check
+
+You can check the API status using the health endpoint:
+
+```bash
+curl http://localhost:3000/health
+```
+
+Response:
+```json
+{
+  "status": "ok"
+}
+```
+
+## Interactive API Documentation
+
+OpenSight provides an interactive Swagger UI for exploring and testing API endpoints:
+
+```
+http://localhost:3000/api/docs
+```
+
+This interface allows you to test endpoints directly from your browser with full request/response examples.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/api-reference/authentication">
+    Learn how to authenticate your API requests
+  </Card>
+  <Card title="API Endpoints" icon="code" href="/api-reference/endpoints">
+    Explore available API endpoints
+  </Card>
+</CardGroup>
